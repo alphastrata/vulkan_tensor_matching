@@ -1,0 +1,116 @@
+#version 450
+
+// Detection result structure
+struct DetectionResult {
+    uint x;
+    uint y;
+    uint correlation_fixed; // correlation * 10000 for precision
+    uint rotation_fixed;    // rotation * 10000 for precision
+};
+
+layout(set = 0, binding = 0) restrict readonly buffer CorrelationMap {
+    float correlation_data[];
+};
+
+layout(set = 0, binding = 1) restrict readonly buffer RotationMap {
+    float rotation_data[];
+};
+
+layout(set = 0, binding = 2) restrict writeonly buffer DetectionResults {
+    DetectionResult results[];
+};
+
+layout(set = 0, binding = 3) uniform PeakParams {
+    uint width;
+    uint height;
+    float threshold;
+    uint max_peaks;
+    uint exclusion_radius;
+    uint padding1;
+    uint padding2;
+    uint padding3;
+} params;
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+// Shared memory for local maximum detection
+shared float local_correlations[18][18]; // 16x16 + 1-pixel border
+
+void main() {
+    uvec3 global_id = gl_GlobalInvocationID;
+    uvec3 local_id = gl_LocalInvocationID;
+
+    if (global_id.x >= params.width || global_id.y >= params.height) {
+        return;
+    }
+
+    uint pixel_idx = global_id.y * params.width + global_id.x;
+    float correlation = correlation_data[pixel_idx];
+
+    // Load data into shared memory with borders
+    local_correlations[local_id.y + 1][local_id.x + 1] = correlation;
+
+    // Load border pixels
+    if (local_id.x == 0 && global_id.x > 0) {
+        local_correlations[local_id.y + 1][0] =
+            correlation_data[pixel_idx - 1];
+    }
+    if (local_id.x == 15 && global_id.x < params.width - 1) {
+        local_correlations[local_id.y + 1][17] =
+            correlation_data[pixel_idx + 1];
+    }
+    if (local_id.y == 0 && global_id.y > 0) {
+        local_correlations[0][local_id.x + 1] =
+            correlation_data[pixel_idx - params.width];
+    }
+    if (local_id.y == 15 && global_id.y < params.height - 1) {
+        local_correlations[17][local_id.x + 1] =
+            correlation_data[pixel_idx + params.width];
+    }
+
+    barrier();
+
+    // Check if correlation exceeds threshold
+    if (correlation < params.threshold) {
+        return;
+    }
+
+    // Check if this is a local maximum
+    bool is_local_maximum = true;
+    uint local_x = local_id.x + 1;
+    uint local_y = local_id.y + 1;
+
+    for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
+            if (dx == 0 && dy == 0) continue;
+
+            uint neighbor_x = local_x + dx;
+            uint neighbor_y = local_y + dy;
+
+            if (neighbor_x < 18 && neighbor_y < 18) {
+                if (local_correlations[neighbor_y][neighbor_x] > correlation) {
+                    is_local_maximum = false;
+                    break;
+                }
+            }
+        }
+        if (!is_local_maximum) break;
+    }
+
+    if (!is_local_maximum) {
+        return;
+    }
+
+    // This is a local maximum - try to add it to results
+    // Simple approach: find first empty slot (in practice would use atomic operations)
+    uint result_slot = atomicAdd(results[0].x, 1); // Use first result as counter
+
+    if (result_slot < params.max_peaks) {
+        results[result_slot + 1] = DetectionResult(
+            global_id.x,
+            global_id.y,
+            uint(correlation * 10000.0),
+            uint(rotation_data[pixel_idx] * 10000.0)
+        );
+    }
+}

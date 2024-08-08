@@ -1,0 +1,57 @@
+[package]
+name = "vulkan_tensor_matching"
+version = "0.1.0"
+edition = "2024"
+authors = ["jer, <alphastrata@gmail.com>"]
+description = "High-performance rotation-invariant template matching library using Vulkan compute shaders and tensor mathematics for GPU-accelerated image processing"
+
+[[example]]
+name = "lenna_vulkan_matching"
+path = "examples/lenna_vulkan_matching.rs"
+
+[[bench]]
+name = "cpu_template_matching"
+harness = false
+
+[[bench]]
+name = "vulkan_template_matching"
+harness = false
+
+[dependencies]
+ash = "0.38"
+ash-window = "0.13"
+raw-window-handle = "0.6"
+winit = "0.30"
+image = "0.25"
+bytemuck = { version = "1.19", features = ["derive"] }
+nalgebra = "0.34"
+rayon = "1.10"
+thiserror = "2.0.17"
+memmap2 = "0.9.9"
+gpu-allocator = { version = "0.28", features = ["vulkan"] }
+log = "0.4"
+env_logger = "0.11"
+imageproc = "0.25"
+ab_glyph = "0.2.22"
+rustfft = "6.1"
+
+# Async options;
+pollster = { version = "0.4", default-features = false, optional = true }
+tokio = { version = "1.48", features = ["full"], optional = true }
+smol = { version = "2.0", optional = true }
+
+
+[build-dependencies]
+shaderc = "0.10.1"
+walkdir = "2.4"
+
+[dev-dependencies]
+criterion = "0.7.0"
+test-case = "3.3"
+image = "0.25"
+
+[features]
+default = ["pollster"]
+tokio = ["dep:tokio"]
+smol = ["dep:smol"]
+pollster = ["dep:pollster"]

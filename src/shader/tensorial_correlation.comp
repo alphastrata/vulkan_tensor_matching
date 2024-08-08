@@ -1,0 +1,195 @@
+#version 450
+
+// Tensorial Correlation Shader
+// Implements Algorithm 2: Tensorial field computation from the paper
+// Martinez-Sanchez et al., arXiv:2408.02398v1 [cs.CV], p. 6
+//
+// Computes the tensorial field Cn(x) = w(x)(f ⋆ T(t))(x)
+// where w(x) is the normalisation factor and T(t) is the tensorial template
+
+// Tensorial correlation computation based on Algorithm 2 from the paper
+// Computes the tensorial field Cn(x) = w(x)(f ⋆ T(t))(x)
+
+struct VulkanTensor2D {
+    float components[8]; // 5 real components + 3 padding for GPU alignment
+};
+
+// Input bindings
+layout(set = 0, binding = 0) restrict readonly buffer TargetImage {
+    float target_data[];
+};
+
+layout(set = 0, binding = 1) restrict readonly buffer TemplateTensors {
+    VulkanTensor2D template_tensors[];
+};
+
+// Output bindings
+layout(set = 0, binding = 2) restrict writeonly buffer CorrelationMap {
+    float correlation_results[];
+};
+
+layout(set = 0, binding = 3) restrict writeonly buffer RotationMap {
+    float rotation_results[];
+};
+
+layout(set = 0, binding = 4) restrict writeonly buffer TensorField {
+    VulkanTensor2D tensor_fields[];
+};
+
+layout(set = 0, binding = 5) uniform CorrelationParams {
+    uint target_width;
+    uint target_height;
+    uint template_width;
+    uint template_height;
+    float correlation_threshold;
+    uint max_results;
+    uint padding1;
+    uint padding2;
+} params;
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+// Function to compute local normalisation factor w(x)
+float computeNormalisationFactor(uint x, uint y) {
+    float sum = 0.0;
+    float sum_sq = 0.0;
+    uint count = 0;
+
+    // Compute local statistics in a window around (x,y)
+    uint window_size = max(params.template_width, params.template_height);
+    uint half_window = window_size / 2;
+
+    for (uint ty = 0; ty < window_size && (y + ty) < params.target_height; ++ty) {
+        for (uint tx = 0; tx < window_size && (x + tx) < params.target_width; ++tx) {
+            uint target_x = x + tx;
+            uint target_y = y + ty;
+            if (target_x < params.target_width && target_y < params.target_height) {
+                uint target_pixel_idx = target_y * params.target_width + target_x;
+                float intensity = target_data[target_pixel_idx];
+                sum += intensity;
+                sum_sq += intensity * intensity;
+                count++;
+            }
+        }
+    }
+
+    if (count == 0) return 1.0;
+
+    float mean = sum / float(count);
+    float variance = (sum_sq / float(count)) - (mean * mean);
+
+    // Avoid division by zero
+    return variance > 1e-6 ? 1.0 / sqrt(variance) : 1.0;
+}
+
+// Function to compute tensorial correlation using Fourier domain (simplified)
+void computeTensorialCorrelation(uint result_x, uint result_y, out VulkanTensor2D result_tensor) {
+    // Initialise result tensor
+    for (uint i = 0; i < 35; ++i) {
+        result_tensor.components[i] = 0.0;
+    }
+
+    float normalisation_factor = 0.0;
+
+    // Compute local normalised cross-correlation tensor
+    // In a full implementation, this would be done in Fourier domain
+    for (uint ty = 0; ty < params.template_height; ++ty) {
+        for (uint tx = 0; tx < params.template_width; ++tx) {
+            uint target_x = result_x + tx;
+            uint target_y = result_y + ty;
+
+            if (target_x < params.target_width && target_y < params.target_height) {
+                uint target_pixel_idx = target_y * params.target_width + target_x;
+                uint template_pixel_idx = ty * params.template_width + tx;
+
+                float target_intensity = target_data[target_pixel_idx];
+                VulkanTensor2D template_tensor = template_tensors[template_pixel_idx];
+
+                // Accumulate tensor weighted by target intensity
+                for (uint i = 0; i < 35; ++i) {
+                    result_tensor.components[i] += template_tensor.components[i] * target_intensity;
+                }
+
+                normalisation_factor += target_intensity * target_intensity;
+            }
+        }
+    }
+
+    // Apply normalisation
+    if (normalisation_factor > 1e-6) {
+        float norm_scale = 1.0 / sqrt(normalisation_factor);
+        for (uint i = 0; i < 35; ++i) {
+            result_tensor.components[i] *= norm_scale;
+        }
+    }
+}
+
+// Function to compute Frobenius norm as correlation strength
+float computeFrobeniusNorm(VulkanTensor2D tensor) {
+    float sum_sq = 0.0;
+    for (uint i = 0; i < 35; ++i) {
+        sum_sq += tensor.components[i] * tensor.components[i];
+    }
+    return sqrt(sum_sq);
+}
+
+// Simplified SS-HOPM implementation for rotation determination
+float determineOptimalRotation(VulkanTensor2D tensor) {
+    // For 2D case, we can use analytical approach
+    // For full 3D, this would require iterative eigenvalue decomposition
+
+    // Extract relevant components for 2D rotation estimation
+    if (35 > 4) {
+        float c0 = tensor.components[0]; // cos⁴θ
+        float c1 = tensor.components[1]; // 4cos³θsinθ
+        float c4 = tensor.components[4]; // sin⁴θ
+
+        if (abs(c1) > 1e-6) {
+            return 0.25 * atan(2.0 * c1, c0 - c4);
+        } else if (c0 > c4) {
+            return 0.0;
+        } else {
+            return 3.14159265359 * 0.5;
+        }
+    }
+
+    return 0.0;
+}
+
+void main() {
+    uvec3 global_id = gl_GlobalInvocationID;
+
+    uint result_width = params.target_width - params.template_width + 1;
+    uint result_height = params.target_height - params.template_height + 1;
+
+    if (global_id.x >= result_width || global_id.y >= result_height) {
+        return;
+    }
+
+    uint result_idx = global_id.y * result_width + global_id.x;
+
+    // Compute normalisation factor for this position
+    float w_x = computeNormalisationFactor(global_id.x, global_id.y);
+
+    // Compute tensorial correlation
+    VulkanTensor2D result_tensor;
+    computeTensorialCorrelation(global_id.x, global_id.y, result_tensor);
+
+    // Apply normalisation
+    for (uint i = 0; i < 35; ++i) {
+        result_tensor.components[i] *= w_x;
+    }
+
+    // Store tensor field
+    tensor_fields[result_idx] = result_tensor;
+
+    // Compute correlation strength (Frobenius norm)
+    float correlation_strength = computeFrobeniusNorm(result_tensor);
+
+    // Determine optimal rotation
+    float optimal_angle = determineOptimalRotation(result_tensor);
+
+    // Store results
+    correlation_results[result_idx] = correlation_strength;
+    rotation_results[result_idx] = optimal_angle;
+}

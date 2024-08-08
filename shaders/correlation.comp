@@ -1,0 +1,114 @@
+#version 450
+
+struct VulkanTensor2D {
+    float components[8];
+};
+
+// Input bindings
+layout(set = 0, binding = 0) restrict readonly buffer TargetImage {
+    float target_data[];
+};
+
+layout(set = 0, binding = 1) restrict readonly buffer TemplateTensors {
+    VulkanTensor2D template_tensors[];
+};
+
+// Output bindings
+layout(set = 0, binding = 2) restrict writeonly buffer CorrelationMap {
+    float correlation_results[];
+};
+
+layout(set = 0, binding = 3) restrict writeonly buffer RotationMap {
+    float rotation_results[];
+};
+
+layout(set = 0, binding = 4) uniform CorrelationParams {
+    uint target_width;
+    uint target_height;
+    uint template_width;
+    uint template_height;
+    float correlation_threshold;
+    uint max_results;
+    uint padding1;
+    uint padding2;
+} params;
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+// Shared memory for template caching
+shared VulkanTensor2D template_cache[16][16];
+
+void main() {
+    uvec3 global_id = gl_GlobalInvocationID;
+    uvec3 local_id = gl_LocalInvocationID;
+
+    uint result_width = params.target_width - params.template_width + 1;
+    uint result_height = params.target_height - params.template_height + 1;
+
+    if (global_id.x >= result_width || global_id.y >= result_height) {
+        return;
+    }
+
+    uint result_idx = global_id.y * result_width + global_id.x;
+
+    // Initialise accumulated tensor
+    VulkanTensor2D accumulated_tensor;
+    for (uint i = 0; i < 8; ++i) {
+        accumulated_tensor.components[i] = 0.0;
+    }
+
+    float normalisation_factor = 0.0;
+
+    // Compute local normalised cross-correlation tensor
+    for (uint ty = 0; ty < params.template_height; ++ty) {
+        for (uint tx = 0; tx < params.template_width; ++tx) {
+            uint target_x = global_id.x + tx;
+            uint target_y = global_id.y + ty;
+            uint target_pixel_idx = target_y * params.target_width + target_x;
+            uint template_pixel_idx = ty * params.template_width + tx;
+
+            float target_intensity = target_data[target_pixel_idx];
+            VulkanTensor2D template_tensor = template_tensors[template_pixel_idx];
+
+            // Accumulate tensor weighted by target intensity
+            for (uint i = 0; i < 5; ++i) {
+                accumulated_tensor.components[i] += template_tensor.components[i] * target_intensity;
+            }
+
+            normalisation_factor += target_intensity * target_intensity;
+        }
+    }
+
+    // Normalise tensor
+    if (normalisation_factor > 1e-6) {
+        float norm_scale = 1.0 / sqrt(normalisation_factor);
+        for (uint i = 0; i < 5; ++i) {
+            accumulated_tensor.components[i] *= norm_scale;
+        }
+    }
+
+    // Compute Frobenius norm as correlation strength
+    float frobenius_norm_sq = 0.0;
+    for (uint i = 0; i < 5; ++i) {
+        frobenius_norm_sq += accumulated_tensor.components[i] * accumulated_tensor.components[i];
+    }
+    float correlation_strength = sqrt(frobenius_norm_sq);
+
+    // Find optimal rotation angle analytically
+    float c0 = accumulated_tensor.components[0]; // cos⁴θ
+    float c1 = accumulated_tensor.components[1]; // 4cos³θsinθ
+    float c4 = accumulated_tensor.components[4]; // sin⁴θ
+
+    float optimal_angle = 0.0;
+    if (abs(c1) > 1e-6) {
+        optimal_angle = 0.25 * atan(2.0 * c1, c0 - c4);
+    } else if (c0 > c4) {
+        optimal_angle = 0.0;
+    } else {
+        optimal_angle = 3.14159265359 * 0.5;
+    }
+
+    // Store results
+    correlation_results[result_idx] = correlation_strength;
+    rotation_results[result_idx] = optimal_angle;
+}

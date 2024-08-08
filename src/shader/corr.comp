@@ -1,0 +1,91 @@
+#version 450
+
+// A compute shader that calculates a normalised cross‑correlation (NCC)
+// for every offset of a template inside a target image.
+//
+// Inputs:
+//   - Target image data in a storage buffer (binding = 0)
+//   - Template image data in a storage buffer (binding = 1)
+//   - The result buffer is written with one float per offset (binding = 2)
+//
+// Push constants carry the dimensions of the target and template.
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(std430, binding = 0) buffer Target {
+    float data[];
+} tgt;
+
+layout(std430, binding = 1) buffer Tmpl {
+    float data[];
+} tmpl;
+
+layout(std430, binding = 2) buffer Result {
+    float data[];
+} res;
+
+layout(push_constant) uniform PushConstants {
+    uint target_width;
+    uint target_height;
+    uint tmpl_width;
+    uint tmpl_height;
+} pc;
+
+void main() {
+    // Global invocation ID gives the offset of the top‑left corner
+    // of the current template position in the target image.
+    uint gx = gl_GlobalInvocationID.x;
+    uint gy = gl_GlobalInvocationID.y;
+
+    // Compute the output buffer dimensions.
+    uint out_width = pc.target_width - pc.tmpl_width + 1;
+    uint out_height = pc.target_height - pc.tmpl_height + 1;
+
+    // Clamp out of bounds workgroups.
+    if (gx >= out_width || gy >= out_height) return;
+
+    uint idx = gy * out_width + gx; // index into the output buffer
+
+    // Accumulators for the NCC formula.
+    float target_sum = 0.0;
+    float tmpl_sum = 0.0;
+    float target_sum_sq = 0.0;
+    float tmpl_sum_sq = 0.0;
+    float prod_sum = 0.0;
+
+    // Loop over the template region.
+    for (uint ty = 0; ty < pc.tmpl_height; ++ty) {
+        for (uint tx = 0; tx < pc.tmpl_width; ++tx) {
+            uint target_idx = (gy + ty) * pc.target_width + (gx + tx);
+            uint tmpl_idx = ty * pc.tmpl_width + tx;
+            float target_val = tgt.data[target_idx];
+            float tmpl_val = tmpl.data[tmpl_idx];
+
+            target_sum += target_val;
+            tmpl_sum += tmpl_val;
+            target_sum_sq += target_val * target_val;
+            tmpl_sum_sq += tmpl_val * tmpl_val;
+            prod_sum += target_val * tmpl_val;
+        }
+    }
+
+    // Normalised cross‑correlation (NCC) computation.
+    uint area = pc.tmpl_width * pc.tmpl_height;
+    float target_mean = target_sum / float(area);
+    float tmpl_mean = tmpl_sum / float(area);
+
+    // Variances (sum of squared deviations from the mean).
+    float target_var = target_sum_sq - target_mean * target_mean * float(area);
+    float tmpl_var = tmpl_sum_sq - tmpl_mean * tmpl_mean * float(area);
+
+    // Numerator of the NCC: covariance between target and template.
+    float numerator = prod_sum - target_mean * tmpl_mean * float(area);
+
+    // Denominator: product of the standard deviations.
+    float denom = sqrt(target_var * tmpl_var);
+
+    // Avoid division by zero – in practice this only happens for degenerate cases.
+    float ncc = denom > 1e-6 ? numerator / denom : 0.0;
+
+    // Store the result.
+    res.data[idx] = ncc;
+}

@@ -1,0 +1,17 @@
+target
+*.log
+.DS_Store
+
+# Allow benchmark results
+!benches/python_benchmarks/*.png
+!benches/python_benchmarks/*.csv
+!benches/python_benchmarks/performance_comparison.md
+benches/python_benchmarks/results/
+
+# Ignore Python cache and virtual environment
+__pycache__/
+*.pyc
+benches/python_benchmarks/**/*.svg
+benches/python_benchmarks/**/*.png
+benches/python_benchmarks/**/*.csv
+*.egg-info*

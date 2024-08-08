@@ -1,0 +1,12 @@
+[project]
+name = "python_benchmarks"
+version = "0.1.0"
+description = "Python benchmarks for template matching using OpenCV"
+authors = [{ name = "jer", email = "alphastrata@gmail.com" }]
+dependencies = [
+    "opencv-python>=4.10.0",
+    "numpy>=1.26.0",
+    "pandas>=2.0.0",
+    "seaborn>=0.12.0",
+]
+requires-python = ">=3.8"

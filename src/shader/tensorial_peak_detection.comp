@@ -1,0 +1,144 @@
+#version 450
+
+// Peak Detection Shader for Tensorial Template Matching
+// Based on Section 3.2: Instance positions (p. 7) and Section 3.1: Optimal rotation (p. 6-7)
+// Martinez-Sanchez et al., arXiv:2408.02398v1 [cs.CV]
+//
+// Uses Frobenius norm as correlation strength as described in Section 3.2 (p. 7)
+// Finds local maxima of the Frobenius norm field ∥Cn(x)∥_F
+// Determines optimal rotation using eigenvalue decomposition as in Section 3.1 (p. 6-7)
+
+struct DetectionResult {
+    uint x;
+    uint y;
+    uint correlation_fixed; // correlation * 10000 for precision
+    uint rotation_fixed;    // rotation * 10000 for precision
+    uint padding1;
+    uint padding2;
+    uint padding3;
+    uint padding4;
+};
+
+layout(set = 0, binding = 0) restrict readonly buffer CorrelationMap {
+    float correlation_data[];
+};
+
+layout(set = 0, binding = 1) restrict readonly buffer RotationMap {
+    float rotation_data[];
+};
+
+layout(set = 0, binding = 2) restrict writeonly buffer DetectionResults {
+    DetectionResult results[];
+};
+
+// Use a separate atomic counter buffer for peak counting
+layout(set = 0, binding = 3) buffer AtomicCounter {
+    uint peak_count;
+} counter;
+
+layout(set = 0, binding = 4) uniform PeakParams {
+    uint width;
+    uint height;
+    float threshold;
+    uint max_peaks;
+    uint exclusion_radius;
+    uint padding1;
+    uint padding2;
+    uint padding3;
+} params;
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+// Shared memory for local maximum detection
+shared float local_correlations[18][18]; // 16x16 + 1-pixel border
+
+// Atomic counter for result management
+shared uint local_peak_count;
+shared uint global_peak_count;
+
+void main() {
+    uvec3 global_id = gl_GlobalInvocationID;
+    uvec3 local_id = gl_LocalInvocationID;
+
+    // Initialise shared counters
+    if (local_id.x == 0 && local_id.y == 0) {
+        local_peak_count = 0;
+        global_peak_count = 0;
+    }
+    barrier();
+
+    if (global_id.x >= params.width || global_id.y >= params.height) {
+        return;
+    }
+
+    uint pixel_idx = global_id.y * params.width + global_id.x;
+    float correlation = correlation_data[pixel_idx];
+
+    // Load data into shared memory with borders
+    local_correlations[local_id.y + 1][local_id.x + 1] = correlation;
+
+    // Load border pixels
+    if (local_id.x == 0 && global_id.x > 0) {
+        local_correlations[local_id.y + 1][0] =
+            correlation_data[pixel_idx - 1];
+    }
+    if (local_id.x == 15 && global_id.x < params.width - 1) {
+        local_correlations[local_id.y + 1][17] =
+            correlation_data[pixel_idx + 1];
+    }
+    if (local_id.y == 0 && global_id.y > 0) {
+        local_correlations[0][local_id.x + 1] =
+            correlation_data[pixel_idx - params.width];
+    }
+    if (local_id.y == 15 && global_id.y < params.height - 1) {
+        local_correlations[17][local_id.x + 1] =
+            correlation_data[pixel_idx + params.width];
+    }
+
+    barrier();
+
+    // Check if correlation exceeds threshold
+    if (correlation < params.threshold) {
+        return;
+    }
+
+    // Check if this is a local maximum with exclusion radius
+    bool is_local_maximum = true;
+    uint local_x = local_id.x + 1;
+    uint local_y = local_id.y + 1;
+
+    // Check in a radius around this point
+    for (int dy = -int(params.exclusion_radius); dy <= int(params.exclusion_radius); ++dy) {
+        for (int dx = -int(params.exclusion_radius); dx <= int(params.exclusion_radius); ++dx) {
+            if (dx == 0 && dy == 0) continue;
+
+            int check_x = int(local_x) + dx;
+            int check_y = int(local_y) + dy;
+
+            if (check_x >= 0 && check_x < 18 && check_y >= 0 && check_y < 18) {
+                if (local_correlations[check_y][check_x] >= correlation) {
+                    is_local_maximum = false;
+                    break;
+                }
+            }
+        }
+        if (!is_local_maximum) break;
+    }
+
+    if (!is_local_maximum) {
+        return;
+    }
+
+    // This is a local maximum - try to add it to results
+    uint slot = atomicAdd(counter.peak_count, 1);
+
+    if (slot < params.max_peaks) {
+        results[slot] = DetectionResult(
+            global_id.x,
+            global_id.y,
+            uint(correlation * 10000.0),
+            uint(rotation_data[pixel_idx] * 10000.0),
+            0, 0, 0, 0
+        );
+    }
+}

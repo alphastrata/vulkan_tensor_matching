@@ -1,0 +1,119 @@
+#version 450
+
+// Tensor structure matching Rust definition
+struct VulkanTensor2D {
+    float components[8]; // [cos⁴θ, 4cos³θsinθ, 6cos²θsin²θ, 4cosθsin³θ, sin⁴θ, pad, pad, pad]
+};
+
+// Bindings
+layout(set = 0, binding = 0) restrict readonly buffer InputImage {
+    float image_data[];
+};
+
+layout(set = 0, binding = 1) restrict writeonly buffer OutputTensors {
+    VulkanTensor2D tensor_field[];
+};
+
+layout(set = 0, binding = 2) uniform Parameters {
+    uint width;
+    uint height;
+    uint num_angles;
+    uint padding;
+} params;
+
+// Local workgroup size optimised for tensor operations
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+// Shared memory for caching rotated values
+shared float rotated_cache[16][16];
+
+float getRotatedIntensity(uint x, uint y, float angle, float centre_x, float centre_y) {
+    // Transform coordinates to centre
+    float dx = float(x) - centre_x;
+    float dy = float(y) - centre_y;
+
+    // Apply rotation
+    float cos_a = cos(angle);
+    float sin_a = sin(angle);
+    float rx = dx * cos_a - dy * sin_a + centre_x;
+    float ry = dx * sin_a + dy * cos_a + centre_y;
+
+    // Bounds check
+    if (rx < 0.0 || rx >= float(params.width - 1) ||
+        ry < 0.0 || ry >= float(params.height - 1)) {
+        return 0.0;
+    }
+
+    // Bilinear interpolation
+    uint x0 = uint(floor(rx));
+    uint y0 = uint(floor(ry));
+    uint x1 = min(x0 + 1, params.width - 1);
+    uint y1 = min(y0 + 1, params.height - 1);
+
+    float fx = rx - float(x0);
+    float fy = ry - float(y0);
+
+    float i00 = image_data[y0 * params.width + x0];
+    float i10 = image_data[y0 * params.width + x1];
+    float i01 = image_data[y1 * params.width + x0];
+    float i11 = image_data[y1 * params.width + x1];
+
+    float i0 = mix(i00, i10, fx);
+    float i1 = mix(i01, i11, fx);
+
+    return mix(i0, i1, fy);
+}
+
+void main() {
+    uvec3 global_id = gl_GlobalInvocationID;
+    uvec3 local_id = gl_LocalInvocationID;
+
+    if (global_id.x >= params.width || global_id.y >= params.height) {
+        return;
+    }
+
+    uint pixel_idx = global_id.y * params.width + global_id.x;
+    float angle_step = 2.0 * 3.14159265359 / float(params.num_angles);
+
+    // Initialise accumulated tensor
+    VulkanTensor2D accumulated_tensor;
+    for (uint i = 0; i < 8; ++i) {
+        accumulated_tensor.components[i] = 0.0;
+    }
+
+    float centre_x = float(params.width) * 0.5;
+    float centre_y = float(params.height) * 0.5;
+
+    // Integrate over all rotation angles
+    for (uint angle_idx = 0; angle_idx < params.num_angles; ++angle_idx) {
+        float angle = float(angle_idx) * angle_step;
+
+        // Get rotated intensity with optimised bilinear interpolation
+        float intensity = getRotatedIntensity(
+            global_id.x, global_id.y, angle, centre_x, centre_y
+        );
+
+        // Compute tensor components for this rotation
+        float cos_theta = cos(angle);
+        float sin_theta = sin(angle);
+        float cos2 = cos_theta * cos_theta;
+        float sin2 = sin_theta * sin_theta;
+        float cos_sin = cos_theta * sin_theta;
+
+        // Accumulate degree-4 tensor components
+        accumulated_tensor.components[0] += intensity * cos2 * cos2;              // cos⁴θ
+        accumulated_tensor.components[1] += intensity * 4.0 * cos2 * cos_sin;     // 4cos³θsinθ
+        accumulated_tensor.components[2] += intensity * 6.0 * cos2 * sin2;        // 6cos²θsin²θ
+        accumulated_tensor.components[3] += intensity * 4.0 * cos_sin * sin2;     // 4cosθsin³θ
+        accumulated_tensor.components[4] += intensity * sin2 * sin2;              // sin⁴θ
+    }
+
+    // Normalise by number of samples
+    float norm_factor = 1.0 / float(params.num_angles);
+    for (uint i = 0; i < 5; ++i) {
+        accumulated_tensor.components[i] *= norm_factor;
+    }
+
+    // Store result
+    tensor_field[pixel_idx] = accumulated_tensor;
+}
