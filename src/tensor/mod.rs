@@ -1,3 +1,3 @@
 pub mod tensor2d;
 
-pub use tensor2d::{VulkanTensor2D, TensorField2D};
+pub use tensor2d::{TensorField2D, VulkanTensor2D};

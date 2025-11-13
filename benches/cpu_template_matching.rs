@@ -1,7 +1,7 @@
 //! Benchmark comparing CPU-based template matching using imageproc
 
-use criterion::{criterion_group, criterion_main, Criterion};
-use imageproc::template_matching::{match_template, MatchTemplateMethod};
+use criterion::{Criterion, criterion_group, criterion_main};
+use imageproc::template_matching::{MatchTemplateMethod, match_template};
 
 fn benchmark_cpu_template_matching(c: &mut Criterion) {
     // Configure criterion with smaller sample size
@@ -9,8 +9,8 @@ fn benchmark_cpu_template_matching(c: &mut Criterion) {
     group.sample_size(10);
 
     // Load test images
-    let target_path = "test_assets/lenna.png";
-    let template_path = "test_assets/templates/test1.png";
+    let target_path = "test_data/lenna.png";
+    let template_path = "test_data/templates/test1.png";
 
     if std::path::Path::new(target_path).exists() && std::path::Path::new(template_path).exists() {
         // Load images using image crate
@@ -23,11 +23,15 @@ fn benchmark_cpu_template_matching(c: &mut Criterion) {
 
         group.bench_function("cpu_template_matching_lenna_test1", |b| {
             b.iter(|| {
-                let _result = match_template(&target_gray, &template_gray, MatchTemplateMethod::SumOfSquaredErrors);
+                let _result = match_template(
+                    &target_gray,
+                    &template_gray,
+                    MatchTemplateMethod::SumOfSquaredErrors,
+                );
             })
         });
     } else {
-        panic!("Test assets not found, skipping CPU benchmark");
+        eprintln!("Test assets not found, skipping CPU benchmark");
     }
 
     group.finish();

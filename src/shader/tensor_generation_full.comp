@@ -1,177 +1,116 @@
 #version 450
 
-// Tensor Generation Shader
-// Implements Algorithm 1: Tensor template generation from the paper
-// Martinez-Sanchez et al., arXiv:2408.02398v1 [cs.CV], p. 5
+// Tensor Generation Shader - Corrected Implementation
+// Martinez-Sanchez et al., arXiv:2408.02398v1 [cs.CV]
 //
-// Generates tensor field T(t) = ∫_{SO(d)} R⊙n S(t') R dR
-// where S(t') is the normalised template and R⊙n is the symmetric tensor power
+// This shader computes the rank-4 tensor field for an image.
+// For each pixel, we integrate the normalized intensity over all rotations,
+// weighted by the symmetric tensor basis v^{⊗4}(θ).
+//
+// The result encodes the rotation signature of the image structure.
 
-// Full tensorial template matching implementation based on
-// "Tensorial template matching for fast cross-correlation with rotations"
-// Martinez-Sanchez et al., arXiv:2408.02398v1
-
-// Symmetric tensor structure for degree-4 tensors in 3D
-// For degree-4 symmetric tensors in 3D, we need (4+3-1)!/(4!*(3-1)!) = 15 independent components
-// But for our 2D implementation, we need (4+2-1)!/(4!*(2-1)!) = 5 components
-// However, for full 3D implementation with quaternion representation, we would need 35 components
-struct VulkanTensor2D {
-    float components[8]; // 5 real components + 3 padding for GPU alignment
-};
-
-// Bindings
 layout(set = 0, binding = 0) restrict readonly buffer InputImage {
     float image_data[];
 };
 
 layout(set = 0, binding = 1) restrict writeonly buffer OutputTensors {
-    VulkanTensor2D tensor_field[];
+    float tensor_field[];
 };
 
 layout(set = 0, binding = 2) uniform Parameters {
     uint width;
     uint height;
-    uint num_angles;  // Number of rotation samples for SO(2) integration
+    uint num_angles;
     uint padding;
 } params;
 
-// Local workgroup size
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-// Function to generate uniform rotation samples
-// For 2D, we sample the circle S^1 uniformly
-float getRotationAngle(uint angle_idx) {
-    float angle_step = 2.0 * 3.14159265359 / float(params.num_angles);
-    return float(angle_idx) * angle_step;
-}
-
-// Function to compute symmetric tensor components for a given rotation
-// For degree-4 tensor in 2D, components are:
-// T_40 = cos^4(θ), T_31 = 4*cos^3(θ)*sin(θ), T_22 = 6*cos^2(θ)*sin^2(θ)
-// T_13 = 4*cos(θ)*sin^3(θ), T_04 = sin^4(θ)
-void computeTensorComponents(float cos_theta, float sin_theta, out float components[5]) {
-    float cos2 = cos_theta * cos_theta;
-    float sin2 = sin_theta * sin_theta;
-    float cos3 = cos2 * cos_theta;
-    float sin3 = sin2 * sin_theta;
-    float cos4 = cos2 * cos2;
-    float sin4 = sin2 * sin2;
-
-    components[0] = cos4;                    // cos^4(θ)
-    components[1] = 4.0 * cos3 * sin_theta;  // 4*cos^3(θ)*sin(θ)
-    components[2] = 6.0 * cos2 * sin2;       // 6*cos^2(θ)*sin^2(θ)
-    components[3] = 4.0 * cos_theta * sin3;  // 4*cos(θ)*sin^3(θ)
-    components[4] = sin4;                    // sin^4(θ)
-}
-
-// For a full 3D implementation, we would need 35 components
-// This is a simplified placeholder for the full tensor
-void computeFullTensorComponents(float cos_theta, float sin_theta, out float components[35]) {
-    // Initialise all components to zero
-    for (int i = 0; i < 35; i++) {
-        components[i] = 0.0;
-    }
-
-    // Compute the basic 5 components for 2D case
-    float basic_components[5];
-    computeTensorComponents(cos_theta, sin_theta, basic_components);
-
-    // Map to the first 5 of 35 components
-    for (int i = 0; i < 5; i++) {
-        components[i] = basic_components[i];
-    }
-
-    // TODO: Implement full 3D tensor components for SO(3) integration
-    // This would require proper implementation of degree-4 symmetric tensors in 3D
-    // which have 15 independent components, not 35 as currently implemented.
-    // The current implementation is a placeholder that only handles 2D case.
-    // A proper 3D implementation would require:
-    // 1. Proper hyperspherical harmonics or quaternion-based approach for SO(3)
-    // 2. Correct mathematical formulation for 3D symmetric tensors
-    // 3. Integration over the full 3D rotation group SO(3) instead of SO(2)
-}
-
-float getRotatedIntensity(uint x, uint y, float angle, float centre_x, float centre_y) {
-    // Transform coordinates to centre
-    float dx = float(x) - centre_x;
-    float dy = float(y) - centre_y;
-
-    // Apply rotation
-    float cos_a = cos(angle);
-    float sin_a = sin(angle);
-    float rx = dx * cos_a - dy * sin_a + centre_x;
-    float ry = dx * sin_a + dy * cos_a + centre_y;
-
-    // Bounds check
-    if (rx < 0.0 || rx >= float(params.width - 1) ||
-        ry < 0.0 || ry >= float(params.height - 1)) {
-        return 0.0;
-    }
-
-    // Bilinear interpolation
-    uint x0 = uint(floor(rx));
-    uint y0 = uint(floor(ry));
-    uint x1 = min(x0 + 1, params.width - 1);
-    uint y1 = min(y0 + 1, params.height - 1);
-
-    float fx = rx - float(x0);
-    float fy = ry - float(y0);
-
-    float i00 = image_data[y0 * params.width + x0];
-    float i10 = image_data[y0 * params.width + x1];
-    float i01 = image_data[y1 * params.width + x0];
-    float i11 = image_data[y1 * params.width + x1];
-
-    float i0 = mix(i00, i10, fx);
-    float i1 = mix(i01, i11, fx);
-
-    return mix(i0, i1, fy);
-}
+const float PI = 3.14159265358979323846;
 
 void main() {
-    uvec3 global_id = gl_GlobalInvocationID;
+    uvec3 g_id = gl_GlobalInvocationID;
+    if (g_id.x >= params.width || g_id.y >= params.height) return;
 
-    if (global_id.x >= params.width || global_id.y >= params.height) {
-        return;
+    // Compute global statistics for normalization
+    uint count = params.width * params.height;
+    float sum = 0.0;
+    float sum2 = 0.0;
+    
+    for (uint i = 0; i < count; ++i) {
+        float v = image_data[i];
+        sum += v;
+        sum2 += v * v;
     }
+    
+    float mean = sum / float(count);
+    float var = (sum2 / float(count)) - (mean * mean);
+    float std_dev = (var > 1e-6) ? sqrt(var) : 1.0;
+    float norm_factor = 1.0 / (std_dev * sqrt(float(count)));
 
-    uint pixel_idx = global_id.y * params.width + global_id.x;
-    float centre_x = float(params.width) * 0.5;
-    float centre_y = float(params.height) * 0.5;
+    // Compute tensor components by integrating over SO(2)
+    // For each rotation angle, sample the image at the rotated coordinate
+    // and accumulate weighted by the tensor basis v^{⊗4}(θ)
+    
+    float acc[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
+    
+    // Pixel coordinate relative to image center
+    float cx = float(params.width - 1) * 0.5;
+    float cy = float(params.height - 1) * 0.5;
+    float dx = float(g_id.x) - cx;
+    float dy = float(g_id.y) - cy;
+    
+    for (uint i = 0; i < params.num_angles; ++i) {
+        float theta = (2.0 * PI * float(i)) / float(params.num_angles);
+        float ct = cos(theta);
+        float st = sin(theta);
 
-    // Initialise accumulated tensor
-    VulkanTensor2D accumulated_tensor;
-    for (uint i = 0; i < 35; ++i) {
-        accumulated_tensor.components[i] = 0.0;
-    }
+        // Rotate the coordinate around the center
+        float rx = dx * ct + dy * st + cx;
+        float ry = -dx * st + dy * ct + cy;
 
-    // Integrate over all rotation angles (SO(2) for 2D)
-    for (uint angle_idx = 0; angle_idx < params.num_angles; ++angle_idx) {
-        float angle = getRotationAngle(angle_idx);
-        float cos_theta = cos(angle);
-        float sin_theta = sin(angle);
-
-        // Get rotated intensity
-        float intensity = getRotatedIntensity(
-            global_id.x, global_id.y, angle, centre_x, centre_y
-        );
-
-        // Compute full tensor components for this rotation
-        float tensor_components[35];
-        computeFullTensorComponents(cos_theta, sin_theta, tensor_components);
-
-        // Accumulate tensor components weighted by intensity
-        for (uint i = 0; i < 35; ++i) {
-            accumulated_tensor.components[i] += intensity * tensor_components[i];
+        // Bilinear interpolation at rotated coordinate
+        float val = 0.0;
+        if (rx >= 0.0 && rx <= float(params.width - 1) && 
+            ry >= 0.0 && ry <= float(params.height - 1)) {
+            uint x0 = uint(floor(rx));
+            uint y0 = uint(floor(ry));
+            float fx = rx - float(x0);
+            float fy = ry - float(y0);
+            uint x1 = min(x0 + 1, params.width - 1);
+            uint y1 = min(y0 + 1, params.height - 1);
+            
+            float i00 = image_data[y0 * params.width + x0];
+            float i10 = image_data[y0 * params.width + x1];
+            float i01 = image_data[y1 * params.width + x0];
+            float i11 = image_data[y1 * params.width + x1];
+            val = mix(mix(i00, i10, fx), mix(i01, i11, fx), fy);
         }
+
+        // Normalized intensity
+        float s_norm = (val - mean) * norm_factor;
+
+        // Tensor basis v^{⊗4} where v = (cos θ, sin θ)
+        // Components: v1^4, v1^3*v2, v1^2*v2^2, v1*v2^3, v2^4
+        float c2 = ct * ct;
+        float s2 = st * st;
+        
+        acc[0] += s_norm * (c2 * c2);           // cos^4(θ)
+        acc[1] += s_norm * (c2 * ct * st);      // cos^3(θ)*sin(θ)
+        acc[2] += s_norm * (c2 * s2);           // cos^2(θ)*sin^2(θ)
+        acc[3] += s_norm * (ct * s2 * st);      // cos(θ)*sin^3(θ)
+        acc[4] += s_norm * (s2 * s2);           // sin^4(θ)
     }
 
-    // Normalise by number of samples
-    float norm_factor = 1.0 / float(params.num_angles);
-    for (uint i = 0; i < 35; ++i) {
-        accumulated_tensor.components[i] *= norm_factor;
+    // Average over all rotations (discrete approximation of integral)
+    uint base_idx = (g_id.y * params.width + g_id.x) * 8;
+    float scale = 1.0 / float(params.num_angles);
+    
+    for (int i = 0; i < 5; ++i) {
+        tensor_field[base_idx + i] = acc[i] * scale;
     }
-
-    // Store result
-    tensor_field[pixel_idx] = accumulated_tensor;
+    // Zero out unused components
+    for (int i = 5; i < 8; ++i) {
+        tensor_field[base_idx + i] = 0.0;
+    }
 }

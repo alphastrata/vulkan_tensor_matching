@@ -1,0 +1,5 @@
+{"image_path": "extensive/source_images/source_0.png", "template_path": "templates/valid_000.png", "expected_matches": [{"x": 50, "y": 50, "w": 64, "h": 64, "angle": 0.0}]}
+{"image_path": "extensive/source_images/source_1.png", "template_path": "templates/valid_001.png", "expected_matches": [{"x": 100, "y": 100, "w": 64, "h": 64, "angle": 0.0}]}
+{"image_path": "extensive/source_images/source_2.png", "template_path": "templates/valid_002.png", "expected_matches": [{"x": 150, "y": 150, "w": 64, "h": 64, "angle": 0.0}]}
+{"image_path": "extensive/source_images/source_4.png", "template_path": "templates/valid_003.png", "expected_matches": [{"x": 281, "y": 276, "w": 83, "h": 91, "angle": 0.0}]}
+{"image_path": "lenna.png", "template_path": "templates/valid_004.png", "expected_matches": [{"x": 100, "y": 100, "w": 96, "h": 96, "angle": 0.0}]}

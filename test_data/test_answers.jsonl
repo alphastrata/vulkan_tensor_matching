@@ -1,0 +1,1 @@
+{"image_path": "lenna.png", "template_path": "templates/test_000.png", "expected_matches": [{"x": 100, "y": 100, "w": 128, "h": 128, "angle": 0.0}]}

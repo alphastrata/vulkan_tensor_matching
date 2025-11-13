@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(cargo +stable build 2>&1 | head -20; rustup show 2>&1 | head -10)",
+      "Bash(rustup run:*)",
+      "Bash(RUSTUP_TOOLCHAIN=1.91.1 cargo build 2>&1 | head -80)",
+      "Bash(rustc --version && which cargo && cargo --version)",
+      "Bash(fish -c 'unset-rustc; cargo build 2>&1' | tail -40)",
+      "Bash(fish -c 'unset-rustc; just proof 2>&1' | tail -30)",
+      "Bash(which maturin; pip show maturin 2>/dev/null; uv tool list 2>/dev/null | head -5)",
+      "Bash(fish -c 'unset-rustc; uv run maturin --version 2>&1'; fish -c 'unset-rustc; uv tool install maturin 2>&1' | tail -5)",
+      "Bash(fish -c 'unset-rustc; just proof 2>&1' | tail -40)",
+      "Bash(fish -c 'unset-rustc; uv venv .venv 2>&1 && source .venv/bin/activate && maturin develop --features python 2>&1' | tail -20)",
+      "Bash(fish -c 'unset-rustc; VIRTUAL_ENV=\\(pwd\\)/.venv maturin develop --features python 2>&1' | tail -20)",
+      "Bash(fish -c 'unset-rustc; VIRTUAL_ENV=\\(pwd\\)/.venv uv run python3 tests/proof_visualizer.py 2>&1' | tail -40)",
+      "Bash(fish -c 'uv run python3 debug_corr.py 2>&1')"
+    ]
+  }
+}

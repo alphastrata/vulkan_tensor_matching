@@ -1,10 +1,13 @@
+use ash::vk;
 use thiserror::Error;
-use ash::{vk};
 
 #[derive(Error, Debug)]
 pub enum TensorMatchingError {
     #[error("Vulkan error: {0}")]
     VulkanError(#[from] ash::vk::Result),
+
+    #[error("Vulkan loading error: {0}")]
+    VulkanLoadingError(#[from] ash::LoadingError),
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
@@ -12,26 +15,11 @@ pub enum TensorMatchingError {
     #[error("Image error: {0}")]
     ImageError(#[from] image::ImageError),
 
-    #[error("GPU allocator error: {0}")]
-    GpuAllocatorError(#[from] gpu_allocator::AllocationError),
+    #[error("GPU allocation error: {0}")]
+    AllocationError(#[from] gpu_allocator::AllocationError),
 
-    #[error("No suitable GPU found")]
-    NoGpuFound,
-
-    #[error("Vulkan entry load error: {0}")]
-    VulkanEntryLoadError(String),
-
-    #[error("Unsupported Vulkan version")]
-    UnsupportedVulkanVersion,
-
-    #[error("Validation layers not available")]
-    ValidationLayersNotAvailable,
-
-    #[error("Shader compilation error: {0}")]
-    ShaderCompilationError(String),
-
-    #[error("FromBytesWithNul error: {0}")]
-    FromBytesWithNulError(#[from] std::ffi::FromBytesWithNulError),
+    #[error("Null byte error: {0}")]
+    NullByteError(#[from] std::ffi::FromBytesWithNulError),
 
     #[error("Pipeline creation error: {0:?}")]
     PipelineCreationError((Vec<vk::Pipeline>, vk::Result)),

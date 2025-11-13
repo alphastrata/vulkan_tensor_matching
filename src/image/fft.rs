@@ -4,26 +4,32 @@
 //! "Tensorial template matching for fast cross-correlation with rotations"
 //! Martinez-Sanchez et al., arXiv:2408.02398v1 [cs.CV], Section 3 (p. 4-8)
 
-use rustfft::{FftPlanner, num_complex::Complex};
-use crate::tensor::tensor2d::VulkanTensor2D;
 use crate::error::Result;
+use crate::tensor::tensor2d::VulkanTensor2D;
+use rustfft::{FftPlanner, num_complex::Complex};
 
-/// Constants from the paper
-pub const MASK_INNER_RATIO: f32 = 0.8;  // Inner radius = 0.8 * template_radius
-pub const MASK_OUTER_RATIO: f32 = 1.0;  // Outer radius = template_radius
-pub const FILTER_PARAMETER_A: f32 = 0.2; // a = 1/5 from Equation 3
-pub const REFINEMENT_RADIUS: u32 = 3;    // rs = 3 voxels from Section 3.3
+/// Constants from the paper (scaled by 1000 for CFFI compatibility)
+pub const MASK_INNER_RATIO: i32 = 800; // Inner radius = 0.8 * template_radius (800/1000)
+pub const MASK_OUTER_RATIO: i32 = 1000; // Outer radius = template_radius (1000/1000)
+pub const FILTER_PARAMETER_A: i32 = 200; // a = 0.2 from Equation 3 (200/1000)
+pub const REFINEMENT_RADIUS: u32 = 3; // rs = 3 voxels from Section 3.3
 
 /// Generate a soft mask with cosine tapering between inner and outer radii
 ///
 /// Creates a circular mask that equals 1 within a certain radius around the centre
 /// and 0 outside a slightly larger radius, with smooth interpolation between.
-pub fn generate_soft_mask(width: u32, height: u32, inner_radius: f32, outer_radius: f32) -> Vec<f32> {
+pub fn generate_soft_mask(
+    width: u32,
+    height: u32,
+    inner_radius: f32,
+    outer_radius: f32,
+) -> Vec<f32> {
     let mut mask = vec![0.0; (width * height) as usize];
     let centre_x = width as f32 / 2.0;
     let centre_y = height as f32 / 2.0;
 
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             let dx = x as f32 - centre_x;
             let dy = y as f32 - centre_y;
@@ -54,7 +60,8 @@ fn apply_separable_filter_1d(data: &[f32], width: u32, height: u32, a: f32) -> V
     let mut result = vec![0.0; data.len()];
 
     // Apply horizontally
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             let mut sum = 0.0;
             for (k, &kernel_val) in kernel.iter().enumerate().take(3) {
@@ -87,10 +94,12 @@ fn apply_separable_filter_1d(data: &[f32], width: u32, height: u32, a: f32) -> V
 /// 2. Mask m that equals 1 within a certain radius and 0 outside
 pub fn apply_s_operator(image: &[f32], mask: &[f32], width: u32, height: u32) -> Vec<f32> {
     // 1. Apply low-pass filter
-    let filtered = apply_separable_filter_1d(image, width, height, FILTER_PARAMETER_A);
+    let a = FILTER_PARAMETER_A as f32 / 1000.0;
+    let filtered = apply_separable_filter_1d(image, width, height, a);
 
     // 2. Apply mask
-    let result: Vec<f32> = mask.iter()
+    let result: Vec<f32> = mask
+        .iter()
         .zip(filtered.iter())
         .map(|(&mask_val, &filtered_val)| mask_val * filtered_val)
         .collect();
@@ -99,11 +108,7 @@ pub fn apply_s_operator(image: &[f32], mask: &[f32], width: u32, height: u32) ->
 }
 
 /// Compute 2D FFT of real data
-pub fn fft_2d_real(
-    data: &[f32],
-    width: usize,
-    height: usize,
-) -> Result<Vec<Complex<f32>>> {
+pub fn fft_2d_real(data: &[f32], width: usize, height: usize) -> Result<Vec<Complex<f32>>> {
     let mut planner = FftPlanner::new();
 
     // Convert real data to complex
@@ -111,32 +116,32 @@ pub fn fft_2d_real(
 
     // Apply FFT in horizontal direction
     let fft_width = planner.plan_fft_forward(width);
-    (0..height)
-        .for_each(|row| {
-            let row_start = row * width;
-            let row_end = row_start + width;
-            fft_width.process(&mut complex_data[row_start..row_end]);
-        });
+    (0..height).for_each(|row| {
+        let row_start = row * width;
+        let row_end = row_start + width;
+        fft_width.process(&mut complex_data[row_start..row_end]);
+    });
 
     // Transpose for vertical processing
     let mut transposed = vec![Complex::new(0.0, 0.0); width * height];
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             transposed[x * height + y] = complex_data[y * width + x];
         });
 
     // Apply FFT in vertical direction
     let fft_height = planner.plan_fft_forward(height);
-    (0..width)
-        .for_each(|col| {
-            let col_start = col * height;
-            let col_end = col_start + height;
-            fft_height.process(&mut transposed[col_start..col_end]);
-        });
+    (0..width).for_each(|col| {
+        let col_start = col * height;
+        let col_end = col_start + height;
+        fft_height.process(&mut transposed[col_start..col_end]);
+    });
 
     // Transpose back
     let mut result = vec![Complex::new(0.0, 0.0); width * height];
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             result[y * width + x] = transposed[x * height + y];
         });
@@ -145,43 +150,39 @@ pub fn fft_2d_real(
 }
 
 /// Compute 2D inverse FFT
-pub fn ifft_2d(
-    data: &[Complex<f32>],
-    width: usize,
-    height: usize,
-) -> Result<Vec<f32>> {
+pub fn ifft_2d(data: &[Complex<f32>], width: usize, height: usize) -> Result<Vec<f32>> {
     let mut planner = FftPlanner::new();
     let mut complex_data = data.to_vec();
 
     // Apply inverse FFT in horizontal direction
     let ifft_width = planner.plan_fft_inverse(width);
-    (0..height)
-        .for_each(|row| {
-            let row_start = row * width;
-            let row_end = row_start + width;
-            ifft_width.process(&mut complex_data[row_start..row_end]);
-        });
+    (0..height).for_each(|row| {
+        let row_start = row * width;
+        let row_end = row_start + width;
+        ifft_width.process(&mut complex_data[row_start..row_end]);
+    });
 
     // Transpose for vertical processing
     let mut transposed = vec![Complex::new(0.0, 0.0); width * height];
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             transposed[x * height + y] = complex_data[y * width + x];
         });
 
     // Apply inverse FFT in vertical direction
     let ifft_height = planner.plan_fft_inverse(height);
-    (0..width)
-        .for_each(|col| {
-            let col_start = col * height;
-            let col_end = col_start + height;
-            ifft_height.process(&mut transposed[col_start..col_end]);
-        });
+    (0..width).for_each(|col| {
+        let col_start = col * height;
+        let col_end = col_start + height;
+        ifft_height.process(&mut transposed[col_start..col_end]);
+    });
 
     // Transpose back and normalise
     let mut result = vec![0.0; width * height];
     let normalisation = (width * height) as f32;
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             result[y * width + x] = transposed[x * height + y].re / normalisation;
         });
@@ -206,12 +207,13 @@ fn compute_local_normalisation(
 ) -> Vec<f32> {
     let mut normalisation_factors = vec![1.0; (width * height) as usize];
     let template_radius = ((template_width.min(template_height) as f32) / 2.0).max(1.0);
-    let inner_radius = template_radius * MASK_INNER_RATIO;
-    let outer_radius = template_radius * MASK_OUTER_RATIO;
+    let inner_radius = template_radius * (MASK_INNER_RATIO as f32 / 1000.0);
+    let outer_radius = template_radius * (MASK_OUTER_RATIO as f32 / 1000.0);
     let mask = generate_soft_mask(template_width, template_height, inner_radius, outer_radius);
 
     // For each position in the target image
-    (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (y, x)))
         .for_each(|(y, x)| {
             // Create a local patch around this position
             let mut patch = vec![0.0; (template_width * template_height) as usize];
@@ -276,7 +278,11 @@ pub fn compute_correlation_fourier(
 
     // Compute local normalisation factors
     let normalisation_factors = compute_local_normalisation(
-        target, target_width, target_height, template_width, template_height
+        target,
+        target_width,
+        target_height,
+        template_width,
+        template_height,
     );
 
     // Convert target to frequency domain (once)
@@ -288,7 +294,8 @@ pub fn compute_correlation_fourier(
     // Process each of the 5 independent tensor components
     for component_idx in 0..5 {
         // Extract this component from all template tensors
-        let component_field: Vec<f32> = template_tensors.iter()
+        let component_field: Vec<f32> = template_tensors
+            .iter()
             .map(|t| t.components[component_idx])
             .collect();
 
@@ -300,14 +307,16 @@ pub fn compute_correlation_fourier(
 
         // For correlation, we need to pad the template FFT to match target size
         // and conjugate it for cross-correlation
-        (0..target_h).flat_map(|y| (0..target_w).map(move |x| (y, x)))
+        (0..target_h)
+            .flat_map(|y| (0..target_w).map(move |x| (y, x)))
             .for_each(|(y, x)| {
                 let target_idx = y * target_w + x;
 
                 // Handle padding by only computing where template overlaps
                 if x < template_w && y < template_h {
                     let template_idx = y * template_w + x;
-                    product[target_idx] = target_fft[target_idx] * template_fft[template_idx].conj();
+                    product[target_idx] =
+                        target_fft[target_idx] * template_fft[template_idx].conj();
                 }
                 // Zero-padding for regions outside template
             });
@@ -320,7 +329,8 @@ pub fn compute_correlation_fourier(
         let out_width = target_w - template_w + 1;
         let out_height = target_h - template_h + 1;
 
-        (0..out_height).flat_map(|y| (0..out_width).map(move |x| (y, x)))
+        (0..out_height)
+            .flat_map(|y| (0..out_width).map(move |x| (y, x)))
             .for_each(|(y, x)| {
                 let out_idx = y * out_width + x;
                 let target_idx = y * target_w + x;
@@ -343,10 +353,7 @@ mod tests {
         let target = vec![1.0, 2.0, 3.0, 4.0];
         let template_tensors = vec![VulkanTensor2D::from_rotation(0.0, 1.0)];
 
-        let result = compute_correlation_fourier(
-            &target, 2, 2,
-            &template_tensors, 1, 1
-        );
+        let result = compute_correlation_fourier(&target, 2, 2, &template_tensors, 1, 1);
 
         assert!(result.is_ok());
     }
