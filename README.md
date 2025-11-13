@@ -5,10 +5,6 @@ Based on this [Tensor-based template matching paper](https://arxiv.org/abs/2408.
 
 I have done my very best to faithfully interpret the parper and its algorithms here using Vulkan (Not an API I am super familiar with, so feedback is most welcome).
 
-The `examples` all save their output, hopefully the text that they slap on is sufficiently informative.
-
-The `tests` can do the same, if you toggle on the `DEBUG_OUTPUT` `const`.
-
 I say 'allegedly' above, but in truth the implementation is _quite_ fast, especially when compared to the cpu implementation from `imageproc` (Which is a great create, I'm not throwing any shade).
 
 ## Usage:
@@ -86,43 +82,20 @@ vulkan_tensor_matching = { version = "0.1", features = ["tokio"] }
 vulkan_tensor_matching = { version = "0.1", features = ["smol"] }
 ```
 
-Pollster is the default.
-
-- **Pollster** (default): Simple, lightweight async executor designed for applications that don't need a full async runtime
-- **Tokio**: Full-featured async runtime with extensive ecosystem and advanced features
-- **Smol**: Lightweight async runtime focused on simplicity and performance
-
 ## Examples
-
-The repository includes several examples demonstrating different approaches to template matching:
-
-- **`lenna_template_matching`**: CPU-based template matching using the `imageproc` crate with traditional rotation-sampling approach (uses `lenna.png` and `test1.png`)
-- **`lenna_vulkan_matching`**: Pure Vulkan-accelerated template matching (uses `lenna.png` and `test1.png`)
-- **`tensorial_template_matching`**: Full tensorial template matching implementation using tensor mathematics (uses `lenna.png` and `test2.png`)
-- **`multi_template_matching`**: Example showing how to process multiple templates (`test1.png` and `test2.png`) against the same target image (`lenna.png`)
 
 Run any example with:
 ```bash
 cargo run --example <example_name>
 ```
 
-All examples save annotated output images showing the detected matches.
-
-## Performance Benefits
-
-The Vulkan-accelerated implementation provides significant performance improvements over CPU-based approaches:
-
-- **~347x faster** than the Rust CPU implementation using `imageproc`
-- **~2.1x faster** than OpenCV's optimized C++ implementation
-- **~157x faster** than the Rust CPU implementation compared to OpenCV
-
 ### Benchmark Results
 
 | Implementation | Average Time | Notes |
 |---------------|-------------|-------|
 | CPU (Rust) | ~725 ms | imageproc crate |
-| GPU (Rust/Vulkan) | ~2.1 ms | Custom Vulkan implementation |
-| CPU (Python/OpenCV) | ~4.6 ms | cv2.matchTemplate |
+| GPU (Rust/Vulkan) | ~2.12 ms | Custom Vulkan implementation |
+| CPU (Python/OpenCV) | ~4.87 ms | cv2.matchTemplate |
 
 ### Performance Comparison Scripts
 
@@ -132,11 +105,11 @@ OpenCV benchmark scripts are available in the `benches/python_benchmarks` direct
 cd benches/python_benchmarks
 uv venv
 source .venv/bin/activate
-uv pip install .
+uv pip install opencv-python numpy pandas seaborn
 python bench.py
 ```
 
 The scripts generate performance comparison plots in SVG format.
 
 ## License
-MIT License - see LICENSE file for details.
+MIT
