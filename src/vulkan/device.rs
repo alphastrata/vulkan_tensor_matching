@@ -59,9 +59,33 @@ impl VulkanDevice {
             .queue_family_index(compute_queue_family_index)
             .queue_priorities(&queue_priorities);
 
-        let device_extension_names = vec![
-            // Add tensor operation extensions if available
-        ];
+        // Check for available device extensions and enable portability subset if available
+        let available_extensions = unsafe {
+            instance
+                .enumerate_device_extension_properties(physical_device)
+                .map_err(TensorMatchingError::VulkanError)?
+        };
+
+        let mut device_extension_names = Vec::new();
+
+        // Check if VK_KHR_portability_subset is available and add it if it is
+        // This is required on macOS with MoltenVK
+        let portability_subset_ext = b"VK_KHR_portability_subset\0";
+        if available_extensions.iter().any(|ext| {
+            unsafe {
+                std::ffi::CStr::from_ptr(ext.extension_name.as_ptr()) ==
+                std::ffi::CStr::from_bytes_with_nul(portability_subset_ext).unwrap()
+            }
+        }) {
+            debug!("VK_KHR_portability_subset extension is available, enabling it");
+            device_extension_names.push(
+                std::ffi::CStr::from_bytes_with_nul(portability_subset_ext)
+                    .unwrap()
+                    .as_ptr()
+            );
+        } else {
+            debug!("VK_KHR_portability_subset extension not available");
+        }
 
         let features = unsafe { instance.get_physical_device_features(physical_device) };
         let _required_features = vk::PhysicalDeviceFeatures {

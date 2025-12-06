@@ -54,15 +54,8 @@ for (i, match) in matches.iter().enumerate() {
 }
 ```
 
-### 4. Interpreting Results
-Correlation Score Guide:
-- **0.95-1.00**: Excellent match
-- **0.85-0.95**: Good match
-- **0.70-0.85**: Fair match
-- **0.50-0.70**: Poor match
-- **Below 0.50**: Likely not a match
-
 ## Installation
+NOTE: You need `vulkan-tools` or the equivalent for your OS, you can google it.
 
 Add to your `Cargo.toml`:
 
@@ -70,12 +63,12 @@ Add to your `Cargo.toml`:
 [dependencies]
 vulkan_tensor_matching = { git = "https://github.com/alphastrata/vulkan_tensor_matching?tab=readme-ov-file" }
 ```
+> no `cargo add` ? ... yeah I dunno -- maybe if someone really wants? 
 
 ### Async Runtime Configuration
 The library supports multiple async runtimes via feature flags:
 ```toml
 # Default (uses pollster)
-vulkan_tensor_matching = "0.1"
 
 # Or with specific runtime
 vulkan_tensor_matching = { version = "0.1", features = ["tokio"] }
