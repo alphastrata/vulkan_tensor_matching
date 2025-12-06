@@ -20,6 +20,16 @@ pub struct TemplateMatch {
     pub confidence: f32,
 }
 
+/// Push constants for the compute shader
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct PushConstants {
+    target_width: u32,
+    target_height: u32,
+    tmpl_width: u32,
+    tmpl_height: u32,
+}
+
 /// The Vulkan based tensor matcher.
 pub struct VulkanTensorMatcher {
     // Store the Vulkan components to ensure proper lifetime management
@@ -28,6 +38,8 @@ pub struct VulkanTensorMatcher {
     compute_queue: vk::Queue,
     compute_command_pool: vk::CommandPool,
     descriptor_set: vk::DescriptorSet,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_set_layout: vk::DescriptorSetLayout,
     pipeline_layout: vk::PipelineLayout,
     pipeline: vk::Pipeline,
     // Store Vulkan components to ensure proper destruction order
@@ -84,9 +96,17 @@ impl VulkanTensorMatcher {
         };
         let descriptor_set = descriptor_sets[0];
 
+        // Define push constant range for the shader
+        let push_constant_range = vk::PushConstantRange::default()
+            .stage_flags(vk::ShaderStageFlags::COMPUTE)
+            .offset(0)
+            .size(std::mem::size_of::<PushConstants>() as u32);
+
         let set_layouts = [descriptor_set_layout];
-        let pipeline_layout_info =
-            vk::PipelineLayoutCreateInfo::default().set_layouts(&set_layouts);
+        let push_constant_ranges = [push_constant_range];
+        let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default()
+            .set_layouts(&set_layouts)
+            .push_constant_ranges(&push_constant_ranges);
         let pipeline_layout = unsafe {
             vulkan_device
                 .device
@@ -138,6 +158,8 @@ impl VulkanTensorMatcher {
             compute_queue,
             compute_command_pool,
             descriptor_set,
+            descriptor_pool,
+            descriptor_set_layout,
             pipeline_layout,
             pipeline,
             _vulkan_device: vulkan_device,
@@ -280,14 +302,6 @@ impl VulkanTensorMatcher {
         debug!("Command buffer allocated");
 
         // ---------- Push constants ----------
-        #[repr(C)]
-        #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-        struct PushConstants {
-            target_width: u32,
-            target_height: u32,
-            tmpl_width: u32,
-            tmpl_height: u32,
-        }
         let pc = PushConstants {
             target_width: target_image.width,
             target_height: target_image.height,
@@ -328,8 +342,8 @@ impl VulkanTensorMatcher {
             let workgroup_size = 16; // From shader layout(local_size_x = 16, local_size_y = 16)
             let num_workgroups_x = out_width.div_ceil(workgroup_size);
             let num_workgroups_y = out_height.div_ceil(workgroup_size);
-            
-            debug!("Dispatching compute shader with dimensions: {}x{}x1 (workgroups: {}x{})", 
+
+            debug!("Dispatching compute shader with dimensions: {}x{}x1 (workgroups: {}x{})",
                    out_width, out_height, num_workgroups_x, num_workgroups_y);
 
             self.device
@@ -466,7 +480,24 @@ impl Drop for VulkanTensorMatcher {
             let _ = self.device.device_wait_idle();
         }
 
-        // Note: Not destroying Vulkan objects here to avoid segmentation faults
-        // In a production implementation, proper cleanup would be required
+        // Properly destroy Vulkan objects in reverse order of creation
+        unsafe {
+            // Destroy pipeline
+            self.device.destroy_pipeline(self.pipeline, None);
+
+            // Destroy pipeline layout
+            self.device.destroy_pipeline_layout(self.pipeline_layout, None);
+
+            // Note: descriptor_set is allocated from a descriptor pool,
+            // so we only need to destroy the pool, not individual sets
+            // Destroy descriptor pool
+            self.device.destroy_descriptor_pool(self.descriptor_pool, None);
+
+            // Destroy descriptor set layout
+            self.device.destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+
+            // Destroy command pool (this will also free command buffers allocated from it)
+            self.device.destroy_command_pool(self.compute_command_pool, None);
+        }
     }
 }
