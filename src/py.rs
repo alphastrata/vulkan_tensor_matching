@@ -4,7 +4,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PyType};
+use pyo3::types::{PyDict, PyType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -20,6 +20,34 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Library author
 pub const AUTHOR: &str = "jer, <alphastrata@gmail.com>";
+
+/// Initialize Vulkan environment for Python (macOS/MoltenVK specific)
+#[cfg(target_os = "macos")]
+fn init_vulkan_env() {
+    // On macOS, ensure MoltenVK can be found
+    // This is called before any Vulkan operations
+    use std::env;
+    
+    // Set VK_ICD_FILENAMES if not already set
+    if env::var("VK_ICD_FILENAMES").is_err() {
+        // Common MoltenVK ICD locations on macOS
+        let icd_paths = [
+            "/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json",
+            "/usr/local/etc/vulkan/icd.d/MoltenVK_icd.json",
+        ];
+        for path in icd_paths {
+            if std::path::Path::new(path).exists() {
+                unsafe { env::set_var("VK_ICD_FILENAMES", path) };
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn init_vulkan_env() {
+    // No special setup needed on other platforms
+}
 
 /// Python wrapper for ImageData
 #[pyclass(name = "ImageData")]

@@ -63,7 +63,7 @@ Add to your `Cargo.toml`:
 [dependencies]
 vulkan_tensor_matching = { git = "https://github.com/alphastrata/vulkan_tensor_matching?tab=readme-ov-file" }
 ```
-> no `cargo add` ? ... yeah I dunno -- maybe if someone really wants? 
+> no `cargo add` ? ... yeah I dunno -- maybe if someone really wants?
 
 ### Async Runtime Configuration
 The library supports multiple async runtimes via feature flags:

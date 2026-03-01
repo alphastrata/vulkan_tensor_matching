@@ -25,6 +25,19 @@ fn compile_shader(compiler: &shaderc::Compiler, shader_path: &str, output_name: 
 fn main() {
     println!("Running build script...");
 
+    // macOS-specific: Add rpath for MoltenVK library loading
+    #[cfg(target_os = "macos")]
+    {
+        // Tell the linker to add rpath for Homebrew libraries
+        println!("cargo:rustc-link-arg=-Wl,-rpath,/opt/homebrew/lib");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/local/lib");
+        
+        // Also link against MoltenVK directly for Python extension
+        println!("cargo:rustc-link-lib=dylib=MoltenVK");
+        println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
+        println!("cargo:rustc-link-search=native=/usr/local/lib");
+    }
+
     // Try to compile shaders, but don't fail if shaderc is not available
     match shaderc::Compiler::new() {
         Ok(compiler) => {

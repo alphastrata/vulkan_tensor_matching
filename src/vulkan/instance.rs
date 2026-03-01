@@ -3,6 +3,39 @@ use log::debug;
 use crate::error::{Result, TensorMatchingError};
 use std::ffi::{CStr, CString};
 
+#[cfg(target_os = "macos")]
+fn load_vulkan_entry() -> Result<Entry> {
+    // On macOS, try multiple paths for MoltenVK/libvulkan
+    let paths = [
+        "libvulkan.dylib",
+        "/opt/homebrew/lib/libvulkan.dylib",
+        "/opt/homebrew/lib/libMoltenVK.dylib",
+        "/usr/local/lib/libvulkan.dylib",
+        "/usr/local/lib/libMoltenVK.dylib",
+    ];
+    
+    for path in &paths {
+        match unsafe { Entry::load_from(path) } {
+            Ok(entry) => {
+                debug!("Loaded Vulkan from: {}", path);
+                return Ok(entry);
+            }
+            Err(e) => {
+                debug!("Failed to load Vulkan from {}: {}", path, e);
+                continue;
+            }
+        }
+    }
+    
+    // Fall back to default loading
+    unsafe { Entry::load() }.map_err(|e| TensorMatchingError::VulkanEntryLoadError(e.to_string()))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn load_vulkan_entry() -> Result<Entry> {
+    unsafe { Entry::load() }.map_err(|e| TensorMatchingError::VulkanEntryLoadError(e.to_string()))
+}
+
 #[derive(Clone)]
 pub struct VulkanInstance {
     pub entry: Entry,
@@ -22,8 +55,7 @@ impl std::fmt::Debug for VulkanInstance {
 
 impl VulkanInstance {
     pub fn new(enable_validation: bool) -> Result<Self> {
-        let entry = unsafe { Entry::load() }
-            .map_err(|e| TensorMatchingError::VulkanEntryLoadError(e.to_string()))?;
+        let entry = load_vulkan_entry()?;
 
         let app_name = CString::new("Tensorial Template Matching")
             .map_err(|e| TensorMatchingError::VulkanEntryLoadError(e.to_string()))?;
@@ -37,21 +69,40 @@ impl VulkanInstance {
             .engine_version(vk::make_api_version(0, 1, 0, 0))
             .api_version(vk::make_api_version(0, 1, 3, 0));
 
-        // Check if we're on macOS and need portability extensions
-        #[cfg(target_os = "macos")]
-        let extension_names = vec![
-            ash::ext::debug_utils::NAME.as_ptr(),
-            vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
-        ];
+        // Get available extensions
+        let available_extensions = unsafe { entry.enumerate_instance_extension_properties(None) }
+            .unwrap_or_default();
+        
+        // Check for debug utils extension
+        let has_debug_utils = available_extensions.iter().any(|ext| {
+            let ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
+            ext_name == ash::ext::debug_utils::NAME
+        });
+        
+        // Check for portability enumeration (needed on macOS)
+        let has_portability = available_extensions.iter().any(|ext| {
+            let ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
+            ext_name == vk::KHR_PORTABILITY_ENUMERATION_NAME
+        });
 
-        #[cfg(not(target_os = "macos"))]
-        let extension_names = vec![
-            ash::ext::debug_utils::NAME.as_ptr(),
-        ];
+        // Build extension list based on what's available
+        let mut extension_names: Vec<*const i8> = Vec::new();
+        
+        #[cfg(target_os = "macos")]
+        {
+            if has_portability {
+                extension_names.push(vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr());
+                debug!("Enabled portability enumeration");
+            }
+        }
+        
+        if has_debug_utils {
+            extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
+            debug!("Enabled debug utils extension");
+        }
 
         // Only try to enable validation if enabled and layers exist
-        let layer_names = if true {
-            // Check if the validation layer exists
+        let layer_names = if enable_validation {
             let available_layers = unsafe { entry.enumerate_instance_layer_properties() }.unwrap_or_default();
             let validation_layer_name = c"VK_LAYER_KHRONOS_validation";
             if available_layers.iter().any(|layer| {
@@ -62,7 +113,7 @@ impl VulkanInstance {
                 vec![validation_layer_name.as_ptr()]
             } else {
                 debug!("Vulkan validation layers not available, proceeding without");
-                vec![] // Don't use validation if layer isn't available
+                vec![]
             }
         } else {
             vec![]
@@ -78,7 +129,7 @@ impl VulkanInstance {
 
         // On macOS, we need to set the enumerate portability bit
         #[cfg(target_os = "macos")]
-        {
+        if has_portability {
             create_info = create_info.flags(vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR);
         }
 
