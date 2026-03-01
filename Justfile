@@ -20,6 +20,10 @@ build:
 run:
     uv run python python/main.py
 
+# Run Python tests
+test-python:
+    uv run python tests/test_vulkan_matching.py
+
 # Run all tests
 test:
     cargo test
