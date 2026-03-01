@@ -5,8 +5,9 @@ Example usage of the vulkan_tensor_matching Python bindings.
 Demonstrates CPU and GPU-accelerated template matching with comparison to OpenCV.
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 try:
     import cv2
@@ -17,15 +18,14 @@ except ImportError:
     print("OpenCV not available - some examples will be skipped")
 
 from rust_python_lib import (
-    ImageData,
-    TemplateMatch,
-    VulkanTensorMatcher,
-    MatchTemplateMethod,
-    match_template_cpu,
-    find_extremes,
-    compress_image,
-    VERSION,
     AUTHOR,
+    VERSION,
+    ImageData,
+    MatchTemplateMethod,
+    VulkanTensorMatcher,
+    compress_image,
+    find_extremes,
+    match_template_cpu,
 )
 
 
@@ -74,9 +74,7 @@ def main():
 
     # Compress image
     compressed = compress_image(img, factor=2)
-    print(
-        f"   Compressed: {compressed.width}x{compressed.height} (from {img.width}x{img.height})"
-    )
+    print(f"   Compressed: {compressed.width}x{compressed.height} (from {img.width}x{img.height})")
 
     # Example 2: CPU template matching
     print("\n2. CPU Template Matching:")
@@ -100,7 +98,7 @@ def main():
 
     print(f"   Template size: {template.shape[0]}x{template.shape[1]}")
     print(f"   Best match at: ({best_x}, {best_y}) with score: {best_score:.4f}")
-    print(f"   Expected location: around (25, 25) - center of bright square")
+    print("   Expected location: around (25, 25) - center of bright square")
 
     # Example 3: Compare with OpenCV
     if OPENCV_AVAILABLE:
@@ -111,12 +109,8 @@ def main():
         cv_best_y, cv_best_x = np.unravel_index(np.argmax(cv_result), cv_result.shape)
         cv_best_score = cv_result[cv_best_y, cv_best_x]
 
-        print(
-            f"   OpenCV best match: ({cv_best_x}, {cv_best_y}) with score: {cv_best_score:.4f}"
-        )
-        print(
-            f"   Rust best match:   ({best_x}, {best_y}) with score: {best_score:.4f}"
-        )
+        print(f"   OpenCV best match: ({cv_best_x}, {cv_best_y}) with score: {cv_best_score:.4f}")
+        print(f"   Rust best match:   ({best_x}, {best_y}) with score: {best_score:.4f}")
 
         # Check if both found similar locations
         distance = np.sqrt((best_x - cv_best_x) ** 2 + (best_y - cv_best_y) ** 2)
@@ -144,9 +138,7 @@ def main():
 
         print(f"   Found {len(matches)} matches above threshold:")
         for i, match in enumerate(matches[:3]):  # Show top 3
-            print(
-                f"     {i+1}. ({match.x}, {match.y}) - correlation: {match.correlation:.4f}"
-            )
+            print(f"     {i + 1}. ({match.x}, {match.y}) - correlation: {match.correlation:.4f}")
 
     except ValueError as e:
         print(f"   Vulkan not available: {e}")

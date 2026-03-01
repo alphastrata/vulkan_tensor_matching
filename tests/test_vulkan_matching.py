@@ -8,9 +8,10 @@ Vulkan GPU tests are included but will skip if Vulkan is unavailable.
 The CPU implementation is the reference - Vulkan should match its results.
 """
 
-import pytest
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pytest
 
 try:
     import cv2
@@ -22,12 +23,10 @@ except ImportError:
 
 from rust_python_lib import (
     ImageData,
-    TemplateMatch,
-    VulkanTensorMatcher,
     MatchTemplateMethod,
+    VulkanTensorMatcher,
     match_template_cpu,
 )
-
 
 TEST_ASSETS_DIR = Path(__file__).parent.parent / "test_assets"
 
@@ -157,12 +156,8 @@ class TestCPUvsOpenCV:
             pytest.skip("Test images not found")
 
         # Load with OpenCV for fair comparison
-        cv_image = (
-            cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
-        )
-        cv_template = (
-            cv2.imread(str(tmpl_path), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
-        )
+        cv_image = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
+        cv_template = cv2.imread(str(tmpl_path), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
 
         img_data = ImageData.from_file(str(img_path))
         tmpl_data = ImageData.from_file(str(tmpl_path))
@@ -177,9 +172,9 @@ class TestCPUvsOpenCV:
         cv_result = cv2.matchTemplate(cv_image, cv_template, cv2.TM_CCORR)
 
         # Both should produce valid output
-        assert (
-            cpu_arr.shape == cv_result.shape
-        ), f"Shape mismatch: CPU={cpu_arr.shape}, OpenCV={cv_result.shape}"
+        assert cpu_arr.shape == cv_result.shape, (
+            f"Shape mismatch: CPU={cpu_arr.shape}, OpenCV={cv_result.shape}"
+        )
         assert np.all(np.isfinite(cpu_arr)), "CPU result contains NaN or Inf"
         assert np.all(np.isfinite(cv_result)), "OpenCV result contains NaN or Inf"
 

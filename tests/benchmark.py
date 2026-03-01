@@ -3,6 +3,7 @@ Simple benchmark tests for the Rust-Python library.
 """
 
 import time
+
 from rust_python_lib import fibonacci, process_numbers
 
 
