@@ -24,3 +24,4 @@ dev = [
 [tool.maturin]
 module-name = "rust_python_lib"
 bindings = "pyo3"
+features = ["python"]

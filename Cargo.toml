@@ -5,6 +5,9 @@ edition = "2024"
 authors = ["jer, <alphastrata@gmail.com>"]
 description = "High-performance rotation-invariant template matching library using Vulkan compute shaders and tensor mathematics for GPU-accelerated image processing"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [[example]]
 name = "lenna_vulkan_matching"
 path = "examples/lenna_vulkan_matching.rs"
@@ -35,6 +38,11 @@ imageproc = "0.25"
 ab_glyph = "0.2.22"
 rustfft = "6.1"
 
+# Python bindings
+pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
 # Async options;
 pollster = { version = "0.4", default-features = false, optional = true }
 tokio = { version = "1.48", features = ["full"], optional = true }
@@ -52,6 +60,7 @@ image = "0.25"
 
 [features]
 default = ["pollster"]
+python = ["dep:pyo3"]
 tokio = ["dep:tokio"]
 smol = ["dep:smol"]
 pollster = ["dep:pollster"]

@@ -47,6 +47,8 @@
 
 pub mod error;
 pub mod image;
+#[cfg(feature = "python")]
+pub mod py;
 pub mod tensor;
 pub mod vulkan;
 
