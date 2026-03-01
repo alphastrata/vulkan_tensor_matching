@@ -1089,24 +1089,37 @@ impl VulkanTensorMatcher {
     /// Create descriptor set layout for tensor generation pipeline
     fn create_tensor_gen_descriptor_set_layout(device: &Device) -> Result<vk::DescriptorSetLayout> {
         let bindings = [
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(0)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(1)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(2)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
+            vk::DescriptorSetLayoutBinding {
+                binding: 0,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 2,
+                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
         ];
 
-        let create_info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
+        let create_info = vk::DescriptorSetLayoutCreateInfo {
+            binding_count: bindings.len() as u32,
+            p_bindings: bindings.as_ptr(),
+            ..vk::DescriptorSetLayoutCreateInfo::default()
+        };
         unsafe {
             device
                 .create_descriptor_set_layout(&create_info, None)
@@ -1119,39 +1132,61 @@ impl VulkanTensorMatcher {
         device: &Device,
     ) -> Result<vk::DescriptorSetLayout> {
         let bindings = [
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(0)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(1)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(2)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(3)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(4)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(5)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
+            vk::DescriptorSetLayoutBinding {
+                binding: 0,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 2,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 3,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 4,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 5,
+                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
         ];
 
-        let create_info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
+        let create_info = vk::DescriptorSetLayoutCreateInfo {
+            binding_count: bindings.len() as u32,
+            p_bindings: bindings.as_ptr(),
+            ..vk::DescriptorSetLayoutCreateInfo::default()
+        };
         unsafe {
             device
                 .create_descriptor_set_layout(&create_info, None)
@@ -1162,34 +1197,53 @@ impl VulkanTensorMatcher {
     /// Create descriptor set layout for peak detection pipeline
     fn create_peak_descriptor_set_layout(device: &Device) -> Result<vk::DescriptorSetLayout> {
         let bindings = [
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(0)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(1)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(2)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(3)
-                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
-            vk::DescriptorSetLayoutBinding::default()
-                .binding(4)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::COMPUTE),
+            vk::DescriptorSetLayoutBinding {
+                binding: 0,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 1,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 2,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 3,
+                descriptor_type: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 4,
+                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::COMPUTE,
+                p_immutable_samplers: std::ptr::null(),
+                ..vk::DescriptorSetLayoutBinding::default()
+            },
         ];
 
-        let create_info = vk::DescriptorSetLayoutCreateInfo::default().bindings(&bindings);
+        let create_info = vk::DescriptorSetLayoutCreateInfo {
+            binding_count: bindings.len() as u32,
+            p_bindings: bindings.as_ptr(),
+            ..vk::DescriptorSetLayoutCreateInfo::default()
+        };
         unsafe {
             device
                 .create_descriptor_set_layout(&create_info, None)
@@ -1212,9 +1266,12 @@ impl VulkanTensorMatcher {
                 descriptor_count: 5, // Allow uniform buffers
             },
         ];
-        let descriptor_pool_info = vk::DescriptorPoolCreateInfo::default()
-            .max_sets(10) // Allow multiple descriptor sets
-            .pool_sizes(&descriptor_pool_sizes);
+        let descriptor_pool_info = vk::DescriptorPoolCreateInfo {
+            max_sets: 10, // Allow multiple descriptor sets
+            pool_size_count: descriptor_pool_sizes.len() as u32,
+            p_pool_sizes: descriptor_pool_sizes.as_ptr(),
+            ..vk::DescriptorPoolCreateInfo::default()
+        };
         unsafe {
             device
                 .create_descriptor_pool(&descriptor_pool_info, None)
@@ -1228,9 +1285,12 @@ impl VulkanTensorMatcher {
         descriptor_pool: vk::DescriptorPool,
         set_layouts: &[vk::DescriptorSetLayout],
     ) -> Result<vk::DescriptorSet> {
-        let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::default()
-            .descriptor_pool(descriptor_pool)
-            .set_layouts(set_layouts);
+        let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo {
+            descriptor_pool,
+            descriptor_set_count: set_layouts.len() as u32,
+            p_set_layouts: set_layouts.as_ptr(),
+            ..vk::DescriptorSetAllocateInfo::default()
+        };
         let descriptor_sets = unsafe {
             device
                 .allocate_descriptor_sets(&descriptor_set_allocate_info)
@@ -1244,7 +1304,11 @@ impl VulkanTensorMatcher {
         device: &Device,
         set_layouts: &[vk::DescriptorSetLayout],
     ) -> Result<vk::PipelineLayout> {
-        let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default().set_layouts(set_layouts);
+        let pipeline_layout_info = vk::PipelineLayoutCreateInfo {
+            set_layout_count: set_layouts.len() as u32,
+            p_set_layouts: set_layouts.as_ptr(),
+            ..vk::PipelineLayoutCreateInfo::default()
+        };
         unsafe {
             device
                 .create_pipeline_layout(&pipeline_layout_info, None)

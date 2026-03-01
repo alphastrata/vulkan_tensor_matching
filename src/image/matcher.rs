@@ -97,16 +97,21 @@ impl VulkanTensorMatcher {
         let descriptor_set = descriptor_sets[0];
 
         // Define push constant range for the shader
-        let push_constant_range = vk::PushConstantRange::default()
-            .stage_flags(vk::ShaderStageFlags::COMPUTE)
-            .offset(0)
-            .size(std::mem::size_of::<PushConstants>() as u32);
+        let push_constant_range = vk::PushConstantRange {
+            stage_flags: vk::ShaderStageFlags::COMPUTE,
+            offset: 0,
+            size: std::mem::size_of::<PushConstants>() as u32,
+        };
 
         let set_layouts = [descriptor_set_layout];
         let push_constant_ranges = [push_constant_range];
-        let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default()
-            .set_layouts(&set_layouts)
-            .push_constant_ranges(&push_constant_ranges);
+        let pipeline_layout_info = vk::PipelineLayoutCreateInfo {
+            set_layout_count: set_layouts.len() as u32,
+            p_set_layouts: set_layouts.as_ptr(),
+            push_constant_range_count: push_constant_ranges.len() as u32,
+            p_push_constant_ranges: push_constant_ranges.as_ptr(),
+            ..vk::PipelineLayoutCreateInfo::default()
+        };
         let pipeline_layout = unsafe {
             vulkan_device
                 .device
