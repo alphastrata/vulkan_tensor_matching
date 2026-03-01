@@ -3,11 +3,11 @@
 //! This implements the basic GPU-accelerated approach without tensor mathematics
 //! for comparison with the full tensorial approach.
 
-use vulkan_tensor_matching::{ImageData, image_data_to_rgb_image};
-use vulkan_tensor_matching::image::{annotate_image_with_matches, save_debug_output};
-use vulkan_tensor_matching::image::matcher::VulkanTensorMatcher;
 use image::RgbImage;
 use std::time::Instant;
+use vulkan_tensor_matching::image::matcher::VulkanTensorMatcher;
+use vulkan_tensor_matching::image::{annotate_image_with_matches, save_debug_output};
+use vulkan_tensor_matching::{ImageData, image_data_to_rgb_image};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load the target image (lenna.png) and templates
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &target_image,
                 &template1,
                 0.8, // correlation threshold
-                10   // max matches
+                10,  // max matches
             )?;
 
             // Perform template matching for the second template
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &target_image,
                 &template2,
                 0.8, // correlation threshold
-                10   // max matches
+                10,  // max matches
             )?;
 
             let elapsed_time = start_time.elapsed();
@@ -48,13 +48,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &mut annotated_image,
                 &matches1,
                 template1.width,
-                template1.height
+                template1.height,
             )?;
             annotate_image_with_matches(
                 &mut annotated_image,
                 &matches2,
                 template2.width,
-                template2.height
+                template2.height,
             )?;
 
             // Save annotated image with debug output
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 total_matches,
                 elapsed_time,
                 "Pure Vulkan Multi-Template Matching",
-                None  // Use default config
+                None, // Use default config
             )?;
         }
         Err(_e) => {

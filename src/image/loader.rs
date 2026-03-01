@@ -194,7 +194,8 @@ impl ImageData {
         let original_data = self.data.clone();
 
         // Horizontal pass
-        (0..self.height).flat_map(|y| (0..self.width).map(move |x| (y, x)))
+        (0..self.height)
+            .flat_map(|y| (0..self.width).map(move |x| (y, x)))
             .for_each(|(y, x)| {
                 let mut sum = 0.0;
                 let mut weight_sum = 0.0;
@@ -213,7 +214,8 @@ impl ImageData {
         let horizontal_result = self.data.clone();
 
         // Vertical pass
-        (0..self.height).flat_map(|y| (0..self.width).map(move |x| (y, x)))
+        (0..self.height)
+            .flat_map(|y| (0..self.width).map(move |x| (y, x)))
             .for_each(|(y, x)| {
                 let mut sum = 0.0;
                 let mut weight_sum = 0.0;

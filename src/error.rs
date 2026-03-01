@@ -1,5 +1,5 @@
+use ash::vk;
 use thiserror::Error;
-use ash::{vk};
 
 #[derive(Error, Debug)]
 pub enum TensorMatchingError {

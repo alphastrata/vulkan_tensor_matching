@@ -1,7 +1,7 @@
 //! Benchmark comparing CPU-based template matching using imageproc
 
-use criterion::{criterion_group, criterion_main, Criterion};
-use imageproc::template_matching::{match_template, MatchTemplateMethod};
+use criterion::{Criterion, criterion_group, criterion_main};
+use imageproc::template_matching::{MatchTemplateMethod, match_template};
 
 fn benchmark_cpu_template_matching(c: &mut Criterion) {
     // Configure criterion with smaller sample size
@@ -23,7 +23,11 @@ fn benchmark_cpu_template_matching(c: &mut Criterion) {
 
         group.bench_function("cpu_template_matching_lenna_test1", |b| {
             b.iter(|| {
-                let _result = match_template(&target_gray, &template_gray, MatchTemplateMethod::SumOfSquaredErrors);
+                let _result = match_template(
+                    &target_gray,
+                    &template_gray,
+                    MatchTemplateMethod::SumOfSquaredErrors,
+                );
             })
         });
     } else {

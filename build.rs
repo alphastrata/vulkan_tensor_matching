@@ -7,7 +7,8 @@ use std::path::Path;
 fn compile_shader(compiler: &shaderc::Compiler, shader_path: &str, output_name: &str) {
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let out_path = Path::new(&out_dir).join(output_name);
-    let shader_source = fs::read_to_string(shader_path).unwrap_or_else(|_| panic!("Failed to read shader source: {}", shader_path));
+    let shader_source = fs::read_to_string(shader_path)
+        .unwrap_or_else(|_| panic!("Failed to read shader source: {}", shader_path));
     let compile_options = shaderc::CompileOptions::new().expect("Failed to init compile options");
     let binary_result = compiler
         .compile_into_spirv(
@@ -18,7 +19,8 @@ fn compile_shader(compiler: &shaderc::Compiler, shader_path: &str, output_name: 
             Some(&compile_options),
         )
         .unwrap_or_else(|err| panic!("Failed to compile shader {}: {}", shader_path, err));
-    fs::write(&out_path, binary_result.as_binary_u8()).unwrap_or_else(|_| panic!("Failed to write SPIR-V: {}", output_name));
+    fs::write(&out_path, binary_result.as_binary_u8())
+        .unwrap_or_else(|_| panic!("Failed to write SPIR-V: {}", output_name));
     println!("cargo:rerun-if-changed={}", shader_path);
 }
 
@@ -31,7 +33,7 @@ fn main() {
         // Tell the linker to add rpath for Homebrew libraries
         println!("cargo:rustc-link-arg=-Wl,-rpath,/opt/homebrew/lib");
         println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/local/lib");
-        
+
         // Also link against MoltenVK directly for Python extension
         println!("cargo:rustc-link-lib=dylib=MoltenVK");
         println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
@@ -46,9 +48,21 @@ fn main() {
             compile_shader(&compiler, "src/shader/corr.comp", "corr.spv");
 
             // Compile the tensorial shaders
-            compile_shader(&compiler, "src/shader/tensor_generation_full.comp", "tensor_generation_full.spv");
-            compile_shader(&compiler, "src/shader/tensorial_correlation.comp", "tensorial_correlation.spv");
-            compile_shader(&compiler, "src/shader/tensorial_peak_detection.comp", "tensorial_peak_detection.spv");
+            compile_shader(
+                &compiler,
+                "src/shader/tensor_generation_full.comp",
+                "tensor_generation_full.spv",
+            );
+            compile_shader(
+                &compiler,
+                "src/shader/tensorial_correlation.comp",
+                "tensorial_correlation.spv",
+            );
+            compile_shader(
+                &compiler,
+                "src/shader/tensorial_peak_detection.comp",
+                "tensorial_peak_detection.spv",
+            );
         }
         Err(_) => {
             println!("cargo:warning=shaderc not available, creating dummy shader files");

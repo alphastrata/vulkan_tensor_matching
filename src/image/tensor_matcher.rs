@@ -11,18 +11,21 @@
 /// - Section 3.1: Optimal rotation determination using SS-HOPM (p. 6-7)
 /// - Section 3.2: Instance positions using Frobenius norm (p. 7)
 use crate::error::{Result, TensorMatchingError};
+use crate::image::fft::REFINEMENT_RADIUS;
 use crate::image::loader::ImageData;
 use crate::vulkan::{device::VulkanDevice, instance::VulkanInstance, memory::VulkanMemoryManager};
 use ash::{Device, vk};
 use log::{debug, info};
 use std::ffi::CString;
-use crate::image::fft::REFINEMENT_RADIUS;
 
 // The compute shaders for tensorial template matching
 // Based on Algorithm 1 and Algorithm 2 from the paper
-static TENSOR_GENERATION_SPV: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tensor_generation_full.spv"));
-static TENSORIAL_CORRELATION_SPV: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tensorial_correlation.spv"));
-static TENSORIAL_PEAK_DETECTION_SPV: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tensorial_peak_detection.spv"));
+static TENSOR_GENERATION_SPV: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/tensor_generation_full.spv"));
+static TENSORIAL_CORRELATION_SPV: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/tensorial_correlation.spv"));
+static TENSORIAL_PEAK_DETECTION_SPV: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/tensorial_peak_detection.spv"));
 
 /// Result of a single template match with rotation information.
 /// Implements the tensorial matching result as described in Section 3.1 (p. 6-7)
@@ -111,25 +114,66 @@ impl VulkanTensorMatcher {
         let compute_command_pool = Self::create_command_pool(&_vulkan_device)?;
 
         // ---------- Tensor Generation Pipeline ----------
-        let tensor_gen_descriptor_set_layout = Self::create_tensor_gen_descriptor_set_layout(&_vulkan_device.device)?;
-        let tensor_gen_descriptor_pool = Self::create_descriptor_pool(&_vulkan_device.device, &tensor_gen_descriptor_set_layout)?;
-        let tensor_gen_descriptor_set = Self::allocate_descriptor_set(&_vulkan_device.device, tensor_gen_descriptor_pool, &[tensor_gen_descriptor_set_layout])?;
-        let tensor_gen_pipeline_layout = Self::create_pipeline_layout(&_vulkan_device.device, &[tensor_gen_descriptor_set_layout])?;
-        let tensor_gen_pipeline = Self::create_compute_pipeline(&_vulkan_device.device, TENSOR_GENERATION_SPV, tensor_gen_pipeline_layout)?;
+        let tensor_gen_descriptor_set_layout =
+            Self::create_tensor_gen_descriptor_set_layout(&_vulkan_device.device)?;
+        let tensor_gen_descriptor_pool = Self::create_descriptor_pool(
+            &_vulkan_device.device,
+            &tensor_gen_descriptor_set_layout,
+        )?;
+        let tensor_gen_descriptor_set = Self::allocate_descriptor_set(
+            &_vulkan_device.device,
+            tensor_gen_descriptor_pool,
+            &[tensor_gen_descriptor_set_layout],
+        )?;
+        let tensor_gen_pipeline_layout = Self::create_pipeline_layout(
+            &_vulkan_device.device,
+            &[tensor_gen_descriptor_set_layout],
+        )?;
+        let tensor_gen_pipeline = Self::create_compute_pipeline(
+            &_vulkan_device.device,
+            TENSOR_GENERATION_SPV,
+            tensor_gen_pipeline_layout,
+        )?;
 
         // ---------- Correlation Pipeline ----------
-        let correlation_descriptor_set_layout = Self::create_correlation_descriptor_set_layout(&_vulkan_device.device)?;
-        let correlation_descriptor_pool = Self::create_descriptor_pool(&_vulkan_device.device, &correlation_descriptor_set_layout)?;
-        let correlation_descriptor_set = Self::allocate_descriptor_set(&_vulkan_device.device, correlation_descriptor_pool, &[correlation_descriptor_set_layout])?;
-        let correlation_pipeline_layout = Self::create_pipeline_layout(&_vulkan_device.device, &[correlation_descriptor_set_layout])?;
-        let correlation_pipeline = Self::create_compute_pipeline(&_vulkan_device.device, TENSORIAL_CORRELATION_SPV, correlation_pipeline_layout)?;
+        let correlation_descriptor_set_layout =
+            Self::create_correlation_descriptor_set_layout(&_vulkan_device.device)?;
+        let correlation_descriptor_pool = Self::create_descriptor_pool(
+            &_vulkan_device.device,
+            &correlation_descriptor_set_layout,
+        )?;
+        let correlation_descriptor_set = Self::allocate_descriptor_set(
+            &_vulkan_device.device,
+            correlation_descriptor_pool,
+            &[correlation_descriptor_set_layout],
+        )?;
+        let correlation_pipeline_layout = Self::create_pipeline_layout(
+            &_vulkan_device.device,
+            &[correlation_descriptor_set_layout],
+        )?;
+        let correlation_pipeline = Self::create_compute_pipeline(
+            &_vulkan_device.device,
+            TENSORIAL_CORRELATION_SPV,
+            correlation_pipeline_layout,
+        )?;
 
         // ---------- Peak Detection Pipeline ----------
-        let peak_descriptor_set_layout = Self::create_peak_descriptor_set_layout(&_vulkan_device.device)?;
-        let peak_descriptor_pool = Self::create_descriptor_pool(&_vulkan_device.device, &peak_descriptor_set_layout)?;
-        let peak_descriptor_set = Self::allocate_descriptor_set(&_vulkan_device.device, peak_descriptor_pool, &[peak_descriptor_set_layout])?;
-        let peak_pipeline_layout = Self::create_pipeline_layout(&_vulkan_device.device, &[peak_descriptor_set_layout])?;
-        let peak_pipeline = Self::create_compute_pipeline(&_vulkan_device.device, TENSORIAL_PEAK_DETECTION_SPV, peak_pipeline_layout)?;
+        let peak_descriptor_set_layout =
+            Self::create_peak_descriptor_set_layout(&_vulkan_device.device)?;
+        let peak_descriptor_pool =
+            Self::create_descriptor_pool(&_vulkan_device.device, &peak_descriptor_set_layout)?;
+        let peak_descriptor_set = Self::allocate_descriptor_set(
+            &_vulkan_device.device,
+            peak_descriptor_pool,
+            &[peak_descriptor_set_layout],
+        )?;
+        let peak_pipeline_layout =
+            Self::create_pipeline_layout(&_vulkan_device.device, &[peak_descriptor_set_layout])?;
+        let peak_pipeline = Self::create_compute_pipeline(
+            &_vulkan_device.device,
+            TENSORIAL_PEAK_DETECTION_SPV,
+            peak_pipeline_layout,
+        )?;
 
         Ok(Self {
             _vulkan_instance,
@@ -187,8 +231,8 @@ impl VulkanTensorMatcher {
 
         // Stage 2: Compute tensorial correlation field
         debug!("Stage 2: Computing tensorial correlation field...");
-        let (correlation_buffer, rotation_buffer, tensor_field_buffer) =
-            self.compute_tensorial_correlation(target_image, &template_tensor_buffer, template_image)?;
+        let (correlation_buffer, rotation_buffer, tensor_field_buffer) = self
+            .compute_tensorial_correlation(target_image, &template_tensor_buffer, template_image)?;
 
         // Stage 3: Detect peaks and determine rotations
         debug!("Stage 3: Detecting peaks and determining rotations...");
@@ -198,7 +242,7 @@ impl VulkanTensorMatcher {
             target_image,
             template_image,
             correlation_threshold,
-            max_matches
+            max_matches,
         )?;
 
         // Clean up temporary buffers
@@ -211,9 +255,14 @@ impl VulkanTensorMatcher {
     }
 
     /// Generate tensor field for template by integrating over all rotations
-    fn generate_template_tensor_field(&self, template_image: &ImageData) -> Result<crate::vulkan::memory::VulkanBuffer> {
+    fn generate_template_tensor_field(
+        &self,
+        template_image: &ImageData,
+    ) -> Result<crate::vulkan::memory::VulkanBuffer> {
         // Create buffer for tensor field output
-        let tensor_field_size = (template_image.width * template_image.height * 8 * std::mem::size_of::<f32>() as u32) as u64;
+        let tensor_field_size =
+            (template_image.width * template_image.height * 8 * std::mem::size_of::<f32>() as u32)
+                as u64;
         let tensor_field_buffer = self.memory_manager.create_tensor_buffer(
             tensor_field_size,
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
@@ -229,7 +278,8 @@ impl VulkanTensorMatcher {
         )?;
 
         // Upload template data
-        self.memory_manager.upload_data(&template_buffer, &template_image.data)?;
+        self.memory_manager
+            .upload_data(&template_buffer, &template_image.data)?;
 
         // Create uniform buffer for shader parameters
         #[repr(C)]
@@ -293,7 +343,9 @@ impl VulkanTensorMatcher {
         ];
 
         unsafe {
-            self._vulkan_device.device.update_descriptor_sets(&descriptor_writes, &[]);
+            self._vulkan_device
+                .device
+                .update_descriptor_sets(&descriptor_writes, &[]);
         }
 
         // Create command buffer and record commands
@@ -302,7 +354,9 @@ impl VulkanTensorMatcher {
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
         let cmd_buffers = unsafe {
-            self._vulkan_device.device.allocate_command_buffers(&cmd_buffer_allocate_info)?
+            self._vulkan_device
+                .device
+                .allocate_command_buffers(&cmd_buffer_allocate_info)?
         };
         let command_buffer = cmd_buffers[0];
 
@@ -310,7 +364,9 @@ impl VulkanTensorMatcher {
             // Begin command buffer
             let begin_info = vk::CommandBufferBeginInfo::default()
                 .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-            self._vulkan_device.device.begin_command_buffer(command_buffer, &begin_info)?;
+            self._vulkan_device
+                .device
+                .begin_command_buffer(command_buffer, &begin_info)?;
 
             // Bind pipeline
             self._vulkan_device.device.cmd_bind_pipeline(
@@ -332,10 +388,17 @@ impl VulkanTensorMatcher {
             // Dispatch compute shader
             let group_count_x = template_image.width.div_ceil(16);
             let group_count_y = template_image.height.div_ceil(16);
-            self._vulkan_device.device.cmd_dispatch(command_buffer, group_count_x, group_count_y, 1);
+            self._vulkan_device.device.cmd_dispatch(
+                command_buffer,
+                group_count_x,
+                group_count_y,
+                1,
+            );
 
             // End command buffer
-            self._vulkan_device.device.end_command_buffer(command_buffer)?;
+            self._vulkan_device
+                .device
+                .end_command_buffer(command_buffer)?;
         }
 
         // Submit command buffer and wait for completion
@@ -347,7 +410,9 @@ impl VulkanTensorMatcher {
                 &[submit_info],
                 vk::Fence::null(),
             )?;
-            self._vulkan_device.device.queue_wait_idle(self.compute_queue)?;
+            self._vulkan_device
+                .device
+                .queue_wait_idle(self.compute_queue)?;
         }
 
         // Clean up temporary buffers
@@ -374,7 +439,8 @@ impl VulkanTensorMatcher {
         let out_height = target_image.height - template_image.height + 1;
 
         // Create output buffers
-        let correlation_buffer_size = (out_width * out_height * std::mem::size_of::<f32>() as u32) as u64;
+        let correlation_buffer_size =
+            (out_width * out_height * std::mem::size_of::<f32>() as u32) as u64;
         let correlation_buffer = self.memory_manager.create_tensor_buffer(
             correlation_buffer_size,
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
@@ -382,7 +448,8 @@ impl VulkanTensorMatcher {
             "Correlation Buffer",
         )?;
 
-        let rotation_buffer_size = (out_width * out_height * std::mem::size_of::<f32>() as u32) as u64;
+        let rotation_buffer_size =
+            (out_width * out_height * std::mem::size_of::<f32>() as u32) as u64;
         let rotation_buffer = self.memory_manager.create_tensor_buffer(
             rotation_buffer_size,
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
@@ -390,7 +457,8 @@ impl VulkanTensorMatcher {
             "Rotation Buffer",
         )?;
 
-        let tensor_field_buffer_size = (out_width * out_height * 8 * std::mem::size_of::<f32>() as u32) as u64;
+        let tensor_field_buffer_size =
+            (out_width * out_height * 8 * std::mem::size_of::<f32>() as u32) as u64;
         let tensor_field_buffer = self.memory_manager.create_tensor_buffer(
             tensor_field_buffer_size,
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
@@ -406,7 +474,8 @@ impl VulkanTensorMatcher {
         )?;
 
         // Upload target data
-        self.memory_manager.upload_data(&target_buffer, &target_image.data)?;
+        self.memory_manager
+            .upload_data(&target_buffer, &target_image.data)?;
 
         // Create uniform buffer for shader parameters
         #[repr(C)]
@@ -499,7 +568,9 @@ impl VulkanTensorMatcher {
         ];
 
         unsafe {
-            self._vulkan_device.device.update_descriptor_sets(&descriptor_writes, &[]);
+            self._vulkan_device
+                .device
+                .update_descriptor_sets(&descriptor_writes, &[]);
         }
 
         // Create command buffer and record commands
@@ -508,7 +579,9 @@ impl VulkanTensorMatcher {
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
         let cmd_buffers = unsafe {
-            self._vulkan_device.device.allocate_command_buffers(&cmd_buffer_allocate_info)?
+            self._vulkan_device
+                .device
+                .allocate_command_buffers(&cmd_buffer_allocate_info)?
         };
         let command_buffer = cmd_buffers[0];
 
@@ -516,7 +589,9 @@ impl VulkanTensorMatcher {
             // Begin command buffer
             let begin_info = vk::CommandBufferBeginInfo::default()
                 .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-            self._vulkan_device.device.begin_command_buffer(command_buffer, &begin_info)?;
+            self._vulkan_device
+                .device
+                .begin_command_buffer(command_buffer, &begin_info)?;
 
             // Bind pipeline
             self._vulkan_device.device.cmd_bind_pipeline(
@@ -538,10 +613,17 @@ impl VulkanTensorMatcher {
             // Dispatch compute shader
             let group_count_x = out_width.div_ceil(16);
             let group_count_y = out_height.div_ceil(16);
-            self._vulkan_device.device.cmd_dispatch(command_buffer, group_count_x, group_count_y, 1);
+            self._vulkan_device.device.cmd_dispatch(
+                command_buffer,
+                group_count_x,
+                group_count_y,
+                1,
+            );
 
             // End command buffer
-            self._vulkan_device.device.end_command_buffer(command_buffer)?;
+            self._vulkan_device
+                .device
+                .end_command_buffer(command_buffer)?;
         }
 
         // Submit command buffer and wait for completion
@@ -553,7 +635,9 @@ impl VulkanTensorMatcher {
                 &[submit_info],
                 vk::Fence::null(),
             )?;
-            self._vulkan_device.device.queue_wait_idle(self.compute_queue)?;
+            self._vulkan_device
+                .device
+                .queue_wait_idle(self.compute_queue)?;
         }
 
         // Clean up temporary buffers
@@ -615,7 +699,8 @@ impl VulkanTensorMatcher {
 
         // Initialise counter to zero
         let counter_init = AtomicCounter { peak_count: 0 };
-        self.memory_manager.upload_data(&counter_buffer, &[counter_init])?;
+        self.memory_manager
+            .upload_data(&counter_buffer, &[counter_init])?;
 
         // Create uniform buffer for shader parameters
         #[repr(C)]
@@ -706,7 +791,9 @@ impl VulkanTensorMatcher {
         ];
 
         unsafe {
-            self._vulkan_device.device.update_descriptor_sets(&descriptor_writes, &[]);
+            self._vulkan_device
+                .device
+                .update_descriptor_sets(&descriptor_writes, &[]);
         }
 
         // Create command buffer and record commands
@@ -715,7 +802,9 @@ impl VulkanTensorMatcher {
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
         let cmd_buffers = unsafe {
-            self._vulkan_device.device.allocate_command_buffers(&cmd_buffer_allocate_info)?
+            self._vulkan_device
+                .device
+                .allocate_command_buffers(&cmd_buffer_allocate_info)?
         };
         let command_buffer = cmd_buffers[0];
 
@@ -723,7 +812,9 @@ impl VulkanTensorMatcher {
             // Begin command buffer
             let begin_info = vk::CommandBufferBeginInfo::default()
                 .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-            self._vulkan_device.device.begin_command_buffer(command_buffer, &begin_info)?;
+            self._vulkan_device
+                .device
+                .begin_command_buffer(command_buffer, &begin_info)?;
 
             // Bind pipeline
             self._vulkan_device.device.cmd_bind_pipeline(
@@ -745,10 +836,17 @@ impl VulkanTensorMatcher {
             // Dispatch compute shader
             let group_count_x = out_width.div_ceil(16);
             let group_count_y = out_height.div_ceil(16);
-            self._vulkan_device.device.cmd_dispatch(command_buffer, group_count_x, group_count_y, 1);
+            self._vulkan_device.device.cmd_dispatch(
+                command_buffer,
+                group_count_x,
+                group_count_y,
+                1,
+            );
 
             // End command buffer
-            self._vulkan_device.device.end_command_buffer(command_buffer)?;
+            self._vulkan_device
+                .device
+                .end_command_buffer(command_buffer)?;
         }
 
         // Submit command buffer and wait for completion
@@ -760,12 +858,27 @@ impl VulkanTensorMatcher {
                 &[submit_info],
                 vk::Fence::null(),
             )?;
-            self._vulkan_device.device.queue_wait_idle(self.compute_queue)?;
+            self._vulkan_device
+                .device
+                .queue_wait_idle(self.compute_queue)?;
         }
 
         // Read results back from GPU
-        let mut results: Vec<DetectionResult> = vec![DetectionResult { x: 0, y: 0, correlation_fixed: 0, rotation_fixed: 0, padding1: 0, padding2: 0, padding3: 0, padding4: 0 }; max_results];
-        self.memory_manager.device_to_host(&results_buffer, &mut results)?;
+        let mut results: Vec<DetectionResult> = vec![
+            DetectionResult {
+                x: 0,
+                y: 0,
+                correlation_fixed: 0,
+                rotation_fixed: 0,
+                padding1: 0,
+                padding2: 0,
+                padding3: 0,
+                padding4: 0
+            };
+            max_results
+        ];
+        self.memory_manager
+            .device_to_host(&results_buffer, &mut results)?;
 
         // Convert to TensorTemplateMatch structs
         let mut matches = Vec::new();
@@ -814,8 +927,10 @@ impl VulkanTensorMatcher {
         let mut processed_tiles = 0;
 
         debug!("Starting tiled tensorial template matching...");
-        debug!("Target: {}x{}, Tile: {}x{}, Overlap: {}",
-               target_image.width, target_image.height, tile_w, tile_h, overlap);
+        debug!(
+            "Target: {}x{}, Tile: {}x{}, Overlap: {}",
+            target_image.width, target_image.height, tile_w, tile_h, overlap
+        );
 
         // Process tiles in a grid pattern with overlap
         for tile_y in (0..target_image.height).step_by((tile_h - overlap) as usize) {
@@ -829,18 +944,18 @@ impl VulkanTensorMatcher {
                     continue;
                 }
 
-                debug!("Processing tile ({}, {}) size {}x{}", tile_x, tile_y, actual_tile_w, actual_tile_h);
+                debug!(
+                    "Processing tile ({}, {}) size {}x{}",
+                    tile_x, tile_y, actual_tile_w, actual_tile_h
+                );
 
                 // Extract tile from target image
-                let tile = self.extract_tile(target_image, tile_x, tile_y, actual_tile_w, actual_tile_h);
+                let tile =
+                    self.extract_tile(target_image, tile_x, tile_y, actual_tile_w, actual_tile_h);
 
                 // Process tile with tensorial template matching
-                let tile_matches = self.match_template(
-                    &tile,
-                    template_image,
-                    correlation_threshold,
-                    max_matches
-                )?;
+                let tile_matches =
+                    self.match_template(&tile, template_image, correlation_threshold, max_matches)?;
 
                 // Adjust coordinates to global image coordinates
                 for mut match_result in tile_matches {
@@ -853,12 +968,19 @@ impl VulkanTensorMatcher {
             }
         }
 
-        debug!("Processed {} tiles, found {} raw matches", processed_tiles, all_matches.len());
+        debug!(
+            "Processed {} tiles, found {} raw matches",
+            processed_tiles,
+            all_matches.len()
+        );
 
         // Merge overlapping detections
         let merged_matches = self.merge_overlapping_detections(&all_matches, overlap);
 
-        debug!("After merging overlapping detections: {} matches", merged_matches.len());
+        debug!(
+            "After merging overlapping detections: {} matches",
+            merged_matches.len()
+        );
 
         Ok(merged_matches)
     }
@@ -934,9 +1056,15 @@ impl VulkanTensorMatcher {
             }
 
             // Take the match with highest correlation from the group
-            let best_match_idx = *group.iter().max_by(|&&a, &&b| {
-                matches[a].correlation.partial_cmp(&matches[b].correlation).unwrap()
-            }).unwrap();
+            let best_match_idx = *group
+                .iter()
+                .max_by(|&&a, &&b| {
+                    matches[a]
+                        .correlation
+                        .partial_cmp(&matches[b].correlation)
+                        .unwrap()
+                })
+                .unwrap();
 
             merged.push(matches[best_match_idx].clone());
             processed[i] = true;
@@ -987,7 +1115,9 @@ impl VulkanTensorMatcher {
     }
 
     /// Create descriptor set layout for correlation pipeline
-    fn create_correlation_descriptor_set_layout(device: &Device) -> Result<vk::DescriptorSetLayout> {
+    fn create_correlation_descriptor_set_layout(
+        device: &Device,
+    ) -> Result<vk::DescriptorSetLayout> {
         let bindings = [
             vk::DescriptorSetLayoutBinding::default()
                 .binding(0)
@@ -1068,7 +1198,10 @@ impl VulkanTensorMatcher {
     }
 
     /// Create a generic descriptor pool
-    fn create_descriptor_pool(device: &Device, _descriptor_set_layout: &vk::DescriptorSetLayout) -> Result<vk::DescriptorPool> {
+    fn create_descriptor_pool(
+        device: &Device,
+        _descriptor_set_layout: &vk::DescriptorSetLayout,
+    ) -> Result<vk::DescriptorPool> {
         let descriptor_pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_BUFFER,
@@ -1107,7 +1240,10 @@ impl VulkanTensorMatcher {
     }
 
     /// Create pipeline layout
-    fn create_pipeline_layout(device: &Device, set_layouts: &[vk::DescriptorSetLayout]) -> Result<vk::PipelineLayout> {
+    fn create_pipeline_layout(
+        device: &Device,
+        set_layouts: &[vk::DescriptorSetLayout],
+    ) -> Result<vk::PipelineLayout> {
         let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default().set_layouts(set_layouts);
         unsafe {
             device
@@ -1123,7 +1259,11 @@ impl VulkanTensorMatcher {
         pipeline_layout: vk::PipelineLayout,
     ) -> Result<vk::Pipeline> {
         // Convert &[u8] to &[u32] with proper alignment
-        assert_eq!(shader_bytes.len() % 4, 0, "Shader code length is not a multiple of 4 bytes");
+        assert_eq!(
+            shader_bytes.len() % 4,
+            0,
+            "Shader code length is not a multiple of 4 bytes"
+        );
 
         let mut shader_code = Vec::with_capacity(shader_bytes.len() / 4);
         for chunk in shader_bytes.chunks_exact(4) {
@@ -1181,12 +1321,21 @@ impl VulkanTensorMatcher {
             // Search in neighborhood
             for dy in -(REFINEMENT_RADIUS as i32)..=(REFINEMENT_RADIUS as i32) {
                 for dx in -(REFINEMENT_RADIUS as i32)..=(REFINEMENT_RADIUS as i32) {
-                    let test_x = (match_result.x as i32 + dx).max(0).min(target_image.width as i32 - 1) as u32;
-                    let test_y = (match_result.y as i32 + dy).max(0).min(target_image.height as i32 - 1) as u32;
+                    let test_x = (match_result.x as i32 + dx)
+                        .max(0)
+                        .min(target_image.width as i32 - 1) as u32;
+                    let test_y = (match_result.y as i32 + dy)
+                        .max(0)
+                        .min(target_image.height as i32 - 1)
+                        as u32;
 
                     // Compute actual LNCC at this position and rotation
                     let lncc = self.compute_lncc_at_position(
-                        target_image, template_image, test_x, test_y, match_result.rotation_angle
+                        target_image,
+                        template_image,
+                        test_x,
+                        test_y,
+                        match_result.rotation_angle,
                     );
 
                     if lncc > best_correlation {
@@ -1286,22 +1435,48 @@ impl VulkanTensorMatcher {
 impl Drop for VulkanTensorMatcher {
     fn drop(&mut self) {
         unsafe {
-            self._vulkan_device.device.destroy_pipeline(self.peak_pipeline, None);
-            self._vulkan_device.device.destroy_pipeline_layout(self.peak_pipeline_layout, None);
-            self._vulkan_device.device.destroy_descriptor_pool(self.peak_descriptor_pool, None);
-            self._vulkan_device.device.destroy_descriptor_set_layout(self.peak_descriptor_set_layout, None);
+            self._vulkan_device
+                .device
+                .destroy_pipeline(self.peak_pipeline, None);
+            self._vulkan_device
+                .device
+                .destroy_pipeline_layout(self.peak_pipeline_layout, None);
+            self._vulkan_device
+                .device
+                .destroy_descriptor_pool(self.peak_descriptor_pool, None);
+            self._vulkan_device
+                .device
+                .destroy_descriptor_set_layout(self.peak_descriptor_set_layout, None);
 
-            self._vulkan_device.device.destroy_pipeline(self.correlation_pipeline, None);
-            self._vulkan_device.device.destroy_pipeline_layout(self.correlation_pipeline_layout, None);
-            self._vulkan_device.device.destroy_descriptor_pool(self.correlation_descriptor_pool, None);
-            self._vulkan_device.device.destroy_descriptor_set_layout(self.correlation_descriptor_set_layout, None);
+            self._vulkan_device
+                .device
+                .destroy_pipeline(self.correlation_pipeline, None);
+            self._vulkan_device
+                .device
+                .destroy_pipeline_layout(self.correlation_pipeline_layout, None);
+            self._vulkan_device
+                .device
+                .destroy_descriptor_pool(self.correlation_descriptor_pool, None);
+            self._vulkan_device
+                .device
+                .destroy_descriptor_set_layout(self.correlation_descriptor_set_layout, None);
 
-            self._vulkan_device.device.destroy_pipeline(self.tensor_gen_pipeline, None);
-            self._vulkan_device.device.destroy_pipeline_layout(self.tensor_gen_pipeline_layout, None);
-            self._vulkan_device.device.destroy_descriptor_pool(self.tensor_gen_descriptor_pool, None);
-            self._vulkan_device.device.destroy_descriptor_set_layout(self.tensor_gen_descriptor_set_layout, None);
+            self._vulkan_device
+                .device
+                .destroy_pipeline(self.tensor_gen_pipeline, None);
+            self._vulkan_device
+                .device
+                .destroy_pipeline_layout(self.tensor_gen_pipeline_layout, None);
+            self._vulkan_device
+                .device
+                .destroy_descriptor_pool(self.tensor_gen_descriptor_pool, None);
+            self._vulkan_device
+                .device
+                .destroy_descriptor_set_layout(self.tensor_gen_descriptor_set_layout, None);
 
-            self._vulkan_device.device.destroy_command_pool(self.compute_command_pool, None);
+            self._vulkan_device
+                .device
+                .destroy_command_pool(self.compute_command_pool, None);
         }
     }
 }

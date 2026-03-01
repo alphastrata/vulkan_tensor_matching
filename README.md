@@ -104,5 +104,41 @@ python bench.py
 
 The scripts generate performance comparison plots in SVG format.
 
+## Testing
+
+### Vulkan GPU vs CPU Comparison Test
+
+```bash
+# Run Vulkan GPU comparison against imageproc CPU (release mode for best performance)
+cargo test --test imageproc_comparison_test --release -- --nocapture
+```
+
+This test:
+- Runs template matching on both Vulkan GPU and imageproc CPU
+- Compares match locations - they should match within 2 pixels
+- Validates the Vulkan implementation is correct
+
+### Python Bindings Tests
+
+```bash
+# Run Python tests (compares Rust CPU against OpenCV)
+uv run python tests/test_vulkan_matching.py
+```
+
+### Run All Tests
+
+```bash
+just test
+```
+
+**Platform Support:**
+- **Linux/Windows**: Full Vulkan support
+- **macOS**: Limited MoltenVK support - Vulkan tests may fail
+
+**Requirements:**
+- Vulkan SDK installed
+- GPU with Vulkan support
+- Verify with: `vulkaninfo`
+
 ## License
 MIT

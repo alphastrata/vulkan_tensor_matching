@@ -116,7 +116,11 @@ impl VulkanTensorMatcher {
         // ---------- Compute pipeline ----------
         // Convert &[u8] to &[u32] with proper alignment
         let shader_bytes = SHADER_SPV;
-        assert_eq!(shader_bytes.len() % 4, 0, "Shader code length is not a multiple of 4 bytes");
+        assert_eq!(
+            shader_bytes.len() % 4,
+            0,
+            "Shader code length is not a multiple of 4 bytes"
+        );
 
         // Use a safe conversion method
         let mut shader_code = Vec::with_capacity(shader_bytes.len() / 4);
@@ -188,12 +192,14 @@ impl VulkanTensorMatcher {
         );
 
         // ---------- Buffer sizes ----------
-        let _target_size = (target_image.data.len() as u64 * std::mem::size_of::<f32>() as u64) as vk::DeviceSize;
-        let _template_size =
-            (template_image.data.len() as u64 * std::mem::size_of::<f32>() as u64) as vk::DeviceSize;
+        let _target_size =
+            (target_image.data.len() as u64 * std::mem::size_of::<f32>() as u64) as vk::DeviceSize;
+        let _template_size = (template_image.data.len() as u64 * std::mem::size_of::<f32>() as u64)
+            as vk::DeviceSize;
         let out_width = target_image.width - template_image.width + 1;
         let out_height = target_image.height - template_image.height + 1;
-        let out_size = (out_width as u64 * out_height as u64 * std::mem::size_of::<f32>() as u64) as vk::DeviceSize;
+        let out_size = (out_width as u64 * out_height as u64 * std::mem::size_of::<f32>() as u64)
+            as vk::DeviceSize;
 
         debug!(
             "Output dimensions: {}x{}, Output size: {} bytes",
@@ -202,12 +208,17 @@ impl VulkanTensorMatcher {
 
         // Check for invalid dimensions
         if out_width == 0 || out_height == 0 {
-            return Err(TensorMatchingError::VulkanError(ash::vk::Result::ERROR_INITIALIZATION_FAILED));
+            return Err(TensorMatchingError::VulkanError(
+                ash::vk::Result::ERROR_INITIALIZATION_FAILED,
+            ));
         }
 
         // Check for extremely small dimensions that might indicate an issue
         if out_width < 10 || out_height < 10 {
-            debug!("Warning: Very small output dimensions detected: {}x{}", out_width, out_height);
+            debug!(
+                "Warning: Very small output dimensions detected: {}x{}",
+                out_width, out_height
+            );
         }
 
         // ---------- Create device buffers ----------
@@ -282,8 +293,7 @@ impl VulkanTensorMatcher {
                 .buffer_info(&result_buffer_info),
         ];
         unsafe {
-            self.device
-                .update_descriptor_sets(&descriptor_writes, &[]);
+            self.device.update_descriptor_sets(&descriptor_writes, &[]);
         }
         debug!("Descriptor sets updated");
 
@@ -294,8 +304,7 @@ impl VulkanTensorMatcher {
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
         let cmd_buffers = unsafe {
-            self
-                .device
+            self.device
                 .allocate_command_buffers(&cmd_buffer_allocate_info)?
         };
         let cmd_buffer = cmd_buffers[0];
@@ -343,8 +352,10 @@ impl VulkanTensorMatcher {
             let num_workgroups_x = out_width.div_ceil(workgroup_size);
             let num_workgroups_y = out_height.div_ceil(workgroup_size);
 
-            debug!("Dispatching compute shader with dimensions: {}x{}x1 (workgroups: {}x{})",
-                   out_width, out_height, num_workgroups_x, num_workgroups_y);
+            debug!(
+                "Dispatching compute shader with dimensions: {}x{}x1 (workgroups: {}x{})",
+                out_width, out_height, num_workgroups_x, num_workgroups_y
+            );
 
             self.device
                 .cmd_dispatch(cmd_buffer, num_workgroups_x, num_workgroups_y, 1);
@@ -356,27 +367,25 @@ impl VulkanTensorMatcher {
 
         // ---------- Submit ----------
         debug!("Submitting command buffer...");
-        
+
         // Create a fence for synchronisation
         let fence = unsafe {
-            self.device.create_fence(&vk::FenceCreateInfo::default(), None)?
+            self.device
+                .create_fence(&vk::FenceCreateInfo::default(), None)?
         };
-        
+
         let command_buffers = [cmd_buffer];
         let submit_info = vk::SubmitInfo::default().command_buffers(&command_buffers);
         unsafe {
-            self.device.queue_submit(
-                self.compute_queue,
-                &[submit_info],
-                fence,
-            )?;
+            self.device
+                .queue_submit(self.compute_queue, &[submit_info], fence)?;
             debug!("Command buffer submitted, waiting for completion...");
-            
+
             // Wait for the fence instead of queue_wait_idle
             self.device.wait_for_fences(&[fence], true, u64::MAX)?;
             debug!("Command buffer completed");
         }
-        
+
         // Clean up the fence
         unsafe {
             self.device.destroy_fence(fence, None);
@@ -396,7 +405,8 @@ impl VulkanTensorMatcher {
 
         // Free command buffers
         unsafe {
-            self.device.free_command_buffers(self.compute_command_pool, &[cmd_buffer]);
+            self.device
+                .free_command_buffers(self.compute_command_pool, &[cmd_buffer]);
         }
 
         // ---------- Convert correlations to matches ----------
@@ -486,18 +496,22 @@ impl Drop for VulkanTensorMatcher {
             self.device.destroy_pipeline(self.pipeline, None);
 
             // Destroy pipeline layout
-            self.device.destroy_pipeline_layout(self.pipeline_layout, None);
+            self.device
+                .destroy_pipeline_layout(self.pipeline_layout, None);
 
             // Note: descriptor_set is allocated from a descriptor pool,
             // so we only need to destroy the pool, not individual sets
             // Destroy descriptor pool
-            self.device.destroy_descriptor_pool(self.descriptor_pool, None);
+            self.device
+                .destroy_descriptor_pool(self.descriptor_pool, None);
 
             // Destroy descriptor set layout
-            self.device.destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+            self.device
+                .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
 
             // Destroy command pool (this will also free command buffers allocated from it)
-            self.device.destroy_command_pool(self.compute_command_pool, None);
+            self.device
+                .destroy_command_pool(self.compute_command_pool, None);
         }
     }
 }

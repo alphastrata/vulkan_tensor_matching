@@ -1,6 +1,6 @@
-use ash::{vk, Entry, Instance};
-use log::debug;
 use crate::error::{Result, TensorMatchingError};
+use ash::{Entry, Instance, vk};
+use log::debug;
 use std::ffi::{CStr, CString};
 
 #[cfg(target_os = "macos")]
@@ -13,7 +13,7 @@ fn load_vulkan_entry() -> Result<Entry> {
         "/usr/local/lib/libvulkan.dylib",
         "/usr/local/lib/libMoltenVK.dylib",
     ];
-    
+
     debug!("Attempting to load Vulkan on macOS...");
     for path in &paths {
         debug!("Trying path: {}", path);
@@ -28,7 +28,7 @@ fn load_vulkan_entry() -> Result<Entry> {
             }
         }
     }
-    
+
     debug!("All paths failed, falling back to default load");
     // Fall back to default loading
     unsafe { Entry::load() }.map_err(|e| TensorMatchingError::VulkanEntryLoadError(e.to_string()))
@@ -73,11 +73,11 @@ impl VulkanInstance {
             .api_version(vk::make_api_version(0, 1, 3, 0));
 
         // Get available extensions
-        let available_extensions = unsafe { entry.enumerate_instance_extension_properties(None) }
-            .unwrap_or_default();
-        
+        let available_extensions =
+            unsafe { entry.enumerate_instance_extension_properties(None) }.unwrap_or_default();
+
         debug!("Found {} Vulkan extensions", available_extensions.len());
-        
+
         // Check for debug utils extension
         let has_debug_utils = available_extensions.iter().any(|ext| {
             let ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
@@ -87,7 +87,7 @@ impl VulkanInstance {
             }
             matches
         });
-        
+
         // Check for portability enumeration (needed on macOS)
         let has_portability = available_extensions.iter().any(|ext| {
             let ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
@@ -100,7 +100,7 @@ impl VulkanInstance {
 
         // Build extension list based on what's available
         let mut extension_names: Vec<*const i8> = Vec::new();
-        
+
         #[cfg(target_os = "macos")]
         {
             if has_portability {
@@ -110,19 +110,20 @@ impl VulkanInstance {
                 debug!("Portability enumeration not available");
             }
         }
-        
+
         if has_debug_utils {
             extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
             debug!("Enabled debug utils extension");
         } else {
             debug!("Debug utils not available");
         }
-        
+
         debug!("Enabling {} extensions", extension_names.len());
 
         // Only try to enable validation if enabled and layers exist
         let layer_names = if enable_validation {
-            let available_layers = unsafe { entry.enumerate_instance_layer_properties() }.unwrap_or_default();
+            let available_layers =
+                unsafe { entry.enumerate_instance_layer_properties() }.unwrap_or_default();
             let validation_layer_name = c"VK_LAYER_KHRONOS_validation";
             if available_layers.iter().any(|layer| {
                 let layer_name = unsafe { CStr::from_ptr(layer.layer_name.as_ptr()) };
@@ -172,7 +173,8 @@ impl VulkanInstance {
 
             let debug_messenger = unsafe {
                 debug_utils_loader.create_debug_utils_messenger(&debug_create_info, None)
-            }.map_err(TensorMatchingError::VulkanError)?;
+            }
+            .map_err(TensorMatchingError::VulkanError)?;
             Some((debug_utils_loader, debug_messenger))
         } else {
             None
@@ -220,7 +222,11 @@ unsafe extern "system" fn vulkan_debug_callback(
 
     log::debug!(
         "{:?}:\n{:?} [{} ({})] : {}\n",
-        message_severity, message_type, message_id_name, message_id_number, message
+        message_severity,
+        message_type,
+        message_id_name,
+        message_id_number,
+        message
     );
 
     vk::FALSE

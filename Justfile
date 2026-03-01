@@ -7,7 +7,7 @@ venv_dir := "venv"
 # Default target
 default: test
 
-# Setup...
+# Setup development environment
 setup:
     uv venv {{ venv_dir }}
     uv sync --dev
@@ -20,14 +20,48 @@ build:
 run:
     uv run python python/main.py
 
-# Run Python tests
+# Run all tests (Rust + Python)
+# Uses cargo-nextest if available, otherwise cargo test --release
+test:
+    # Rust tests
+    @if command -v cargo-nextest &> /dev/null; then \
+        echo "Using cargo-nextest..."; \
+        cargo nextest run --release; \
+    else \
+        echo "cargo-nextest not found, using cargo test --release..."; \
+        cargo test --release; \
+    fi
+    # Python tests
+    uv run python tests/test_vulkan_matching.py
+
+# Run Python tests only
 test-python:
     uv run python tests/test_vulkan_matching.py
 
-# Run all tests
-test:
-    cargo test
-    uv run python tests/test_vulkan_matching.py
+# Run Rust tests only
+test-rust:
+    @if command -v cargo-nextest &> /dev/null; then \
+        cargo nextest run --release; \
+    else \
+        cargo test --release; \
+    fi
+
+# Format all code (Rust + Python)
+fmt:
+    cargo fmt
+    uv run ruff format python/ tests/
+
+# Lint all code (Rust + Python)
+check:
+    # Rust lint
+    cargo clippy -- -W warnings
+    # Python lint
+    uv run ruff check python/ tests/
+
+# Check formatting without making changes
+fmt-check:
+    cargo fmt --check
+    uv run ruff format --check python/ tests/
 
 # Clean build artifacts
 clean:
@@ -39,16 +73,6 @@ clean:
 # Build wheels for distribution
 wheel:
     uv run --with maturin maturin build --release
-
-# Format code
-fmt:
-    cargo fmt
-    uv run black python/ tests/
-
-# Lint code
-lint:
-    cargo clippy -- -W warnings
-    uv run black --check python/ tests/
 
 # Build and run benchmarks
 bench:

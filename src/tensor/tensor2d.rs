@@ -1,4 +1,4 @@
-use crate::image::fft::{apply_s_operator, generate_soft_mask, MASK_INNER_RATIO, MASK_OUTER_RATIO};
+use crate::image::fft::{MASK_INNER_RATIO, MASK_OUTER_RATIO, apply_s_operator, generate_soft_mask};
 use bytemuck::{Pod, Zeroable};
 use std::f32::consts::PI;
 
@@ -33,19 +33,22 @@ impl VulkanTensor2D {
 
         Self {
             components: [
-                intensity * cos2 * cos2,              // cos⁴θ
-                intensity * 4.0 * cos2 * cos_sin,     // 4cos³θsinθ
-                intensity * 6.0 * cos2 * sin2,        // 6cos²θsin²θ
-                intensity * 4.0 * cos_sin * sin2,     // 4cosθsin³θ
-                intensity * sin2 * sin2,              // sin⁴θ
-                0.0, 0.0, 0.0, // GPU alignment padding
+                intensity * cos2 * cos2,          // cos⁴θ
+                intensity * 4.0 * cos2 * cos_sin, // 4cos³θsinθ
+                intensity * 6.0 * cos2 * sin2,    // 6cos²θsin²θ
+                intensity * 4.0 * cos_sin * sin2, // 4cosθsin³θ
+                intensity * sin2 * sin2,          // sin⁴θ
+                0.0,
+                0.0,
+                0.0, // GPU alignment padding
             ],
         }
     }
 
     /// Compute Frobenius norm for correlation strength
     pub fn frobenius_norm(&self) -> f32 {
-        self.components[..5].iter()
+        self.components[..5]
+            .iter()
             .map(|&x| x * x)
             .sum::<f32>()
             .sqrt()
@@ -66,11 +69,7 @@ impl VulkanTensor2D {
             0.25 * numerator.atan2(denominator)
         } else {
             // Handle degenerate cases
-            if c0 > c4 {
-                0.0
-            } else {
-                PI / 2.0
-            }
+            if c0 > c4 { 0.0 } else { PI / 2.0 }
         }
     }
 
@@ -94,7 +93,8 @@ impl VulkanTensor2D {
 
     /// Compute tensor contraction for correlation
     pub fn contract(&self, other: &Self) -> f32 {
-        self.components[..5].iter()
+        self.components[..5]
+            .iter()
             .zip(other.components[..5].iter())
             .map(|(a, b)| a * b)
             .sum()
@@ -139,7 +139,9 @@ impl TensorField2D {
         let norm = variance.sqrt().max(1e-6);
 
         // Normalise template
-        let normalised_template: Vec<f32> = s_t.iter().zip(mask.iter())
+        let normalised_template: Vec<f32> = s_t
+            .iter()
+            .zip(mask.iter())
             .map(|(s, m)| m * (s - mu) / norm)
             .collect();
 
@@ -149,7 +151,8 @@ impl TensorField2D {
         let mut total_intensity = 0.0;
 
         // Process each pixel
-        (0..height).flat_map(|y| (0..width).map(move |x| (y, x)))
+        (0..height)
+            .flat_map(|y| (0..width).map(move |x| (y, x)))
             .for_each(|(y, x)| {
                 let pixel_idx = (y * width + x) as usize;
                 let base_intensity = normalised_template[pixel_idx];
@@ -164,7 +167,12 @@ impl TensorField2D {
                     // Get intensity at this position for this rotation
                     // In practice, this would involve proper interpolation
                     let rotated_intensity = Self::get_rotated_intensity(
-                        &normalised_template, width, height, x, y, angle
+                        &normalised_template,
+                        width,
+                        height,
+                        x,
+                        y,
+                        angle,
                     );
 
                     // Create tensor for this rotation
@@ -191,7 +199,7 @@ impl TensorField2D {
         height: u32,
         x: u32,
         y: u32,
-        angle: f32
+        angle: f32,
     ) -> f32 {
         let centre_x = width as f32 / 2.0;
         let centre_y = height as f32 / 2.0;
@@ -207,9 +215,11 @@ impl TensorField2D {
         let rotated_y = dx * sin_a + dy * cos_a + centre_y;
 
         // Bilinear interpolation
-        if rotated_x >= 0.0 && rotated_x < (width - 1) as f32
-            && rotated_y >= 0.0 && rotated_y < (height - 1) as f32 {
-
+        if rotated_x >= 0.0
+            && rotated_x < (width - 1) as f32
+            && rotated_y >= 0.0
+            && rotated_y < (height - 1) as f32
+        {
             let x0 = rotated_x.floor() as u32;
             let y0 = rotated_y.floor() as u32;
             let x1 = (x0 + 1).min(width - 1);

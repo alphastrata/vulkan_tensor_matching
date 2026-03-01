@@ -1,6 +1,5 @@
-
+use imageproc::template_matching::{MatchTemplateMethod, match_template};
 use vulkan_tensor_matching::{ImageData, VulkanTensorMatcher};
-use imageproc::template_matching::{match_template, MatchTemplateMethod};
 
 #[test]
 fn test_compare_with_imageproc() {
@@ -8,7 +7,8 @@ fn test_compare_with_imageproc() {
     let target_path = "test_assets/lenna.png";
     let template_path = "test_assets/templates/test1.png";
 
-    if !std::path::Path::new(target_path).exists() || !std::path::Path::new(template_path).exists() {
+    if !std::path::Path::new(target_path).exists() || !std::path::Path::new(template_path).exists()
+    {
         println!("Test assets not found, skipping imageproc comparison test");
         return;
     }
@@ -36,16 +36,19 @@ fn test_compare_with_imageproc() {
 
     // Load images for Vulkan
     let target_image_vulkan = ImageData::from_file(target_path).expect("Failed to load lenna.png");
-    let template_image_vulkan = ImageData::from_file(template_path).expect("Failed to load test1.png");
+    let template_image_vulkan =
+        ImageData::from_file(template_path).expect("Failed to load test1.png");
 
     // Run Vulkan template matching
     let matcher = VulkanTensorMatcher::new().expect("Failed to create VulkanTensorMatcher");
-    let matches = matcher.match_template(
-        &target_image_vulkan,
-        &template_image_vulkan,
-        0.1, // correlation threshold (reduced from 0.8 to allow lower correlation matches)
-        1,   // max matches
-    ).expect("Vulkan template matching failed");
+    let matches = matcher
+        .match_template(
+            &target_image_vulkan,
+            &template_image_vulkan,
+            0.1, // correlation threshold (reduced from 0.8 to allow lower correlation matches)
+            1,   // max matches
+        )
+        .expect("Vulkan template matching failed");
 
     // Compare the results
     assert!(!matches.is_empty(), "Vulkan matcher found no matches");
@@ -64,7 +67,16 @@ fn test_compare_with_imageproc() {
 
     // Allow a small tolerance for differences in implementation
     let tolerance = 2;
-    assert!(x_diff <= tolerance, "X coordinates differ by more than tolerance: vulkan: {}, imageproc: {}", vulkan_match_x_adjusted, imageproc_match_x);
-    assert!(y_diff <= tolerance, "Y coordinates differ by more than tolerance: vulkan: {}, imageproc: {}", vulkan_match_y_adjusted, imageproc_match_y);
-
+    assert!(
+        x_diff <= tolerance,
+        "X coordinates differ by more than tolerance: vulkan: {}, imageproc: {}",
+        vulkan_match_x_adjusted,
+        imageproc_match_x
+    );
+    assert!(
+        y_diff <= tolerance,
+        "Y coordinates differ by more than tolerance: vulkan: {}, imageproc: {}",
+        vulkan_match_y_adjusted,
+        imageproc_match_y
+    );
 }

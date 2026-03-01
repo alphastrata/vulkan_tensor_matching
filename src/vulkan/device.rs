@@ -1,6 +1,6 @@
-use ash::{vk, Device, Instance};
-use log::{debug, info};
 use crate::error::{Result, TensorMatchingError};
+use ash::{Device, Instance, vk};
+use log::{debug, info};
 use std::ffi::CStr;
 
 #[derive(Clone)]
@@ -19,7 +19,10 @@ impl std::fmt::Debug for VulkanDevice {
             .field("physical_device", &self.physical_device)
             .field("device", &"Device")
             .field("compute_queue", &self.compute_queue)
-            .field("compute_queue_family_index", &self.compute_queue_family_index)
+            .field(
+                "compute_queue_family_index",
+                &self.compute_queue_family_index,
+            )
             .field("device_memory_properties", &self.device_memory_properties)
             .field("device_properties", &self.device_properties)
             .finish()
@@ -28,8 +31,19 @@ impl std::fmt::Debug for VulkanDevice {
 
 impl VulkanDevice {
     pub fn new(instance: &Instance) -> Result<Self> {
-        let physical_devices = unsafe { instance.enumerate_physical_devices() }
-            .map_err(TensorMatchingError::VulkanError)?;
+        // enumerate_physical_devices can panic on MoltenVK, catch it
+        let physical_devices =
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                instance.enumerate_physical_devices()
+            })) {
+                Ok(Ok(devices)) => devices,
+                Ok(Err(e)) => return Err(TensorMatchingError::VulkanError(e)),
+                Err(_) => {
+                    return Err(TensorMatchingError::VulkanError(
+                        ash::vk::Result::ERROR_INITIALIZATION_FAILED,
+                    ));
+                }
+            };
 
         let (physical_device, compute_queue_family_index) = physical_devices
             .iter()
@@ -42,17 +56,26 @@ impl VulkanDevice {
         info!("Selected GPU: {}", device_name);
 
         let device_properties = unsafe { instance.get_physical_device_properties(physical_device) };
-        let device_memory_properties = unsafe { instance.get_physical_device_memory_properties(physical_device) };
+        let device_memory_properties =
+            unsafe { instance.get_physical_device_memory_properties(physical_device) };
 
         // Print compute capabilities
         let limits = &device_properties.limits;
         debug!("Compute Capabilities:");
-        debug!("   Max compute workgroup size: {}x{}x{}",
-               limits.max_compute_work_group_size[0],
-               limits.max_compute_work_group_size[1],
-               limits.max_compute_work_group_size[2]);
-        debug!("   Max compute workgroup invocations: {}", limits.max_compute_work_group_invocations);
-        debug!("   Max compute shared memory: {} KB", limits.max_compute_shared_memory_size / 1024);
+        debug!(
+            "   Max compute workgroup size: {}x{}x{}",
+            limits.max_compute_work_group_size[0],
+            limits.max_compute_work_group_size[1],
+            limits.max_compute_work_group_size[2]
+        );
+        debug!(
+            "   Max compute workgroup invocations: {}",
+            limits.max_compute_work_group_invocations
+        );
+        debug!(
+            "   Max compute shared memory: {} KB",
+            limits.max_compute_shared_memory_size / 1024
+        );
 
         let queue_priorities = [1.0];
         let queue_create_info = vk::DeviceQueueCreateInfo::default()
@@ -71,17 +94,15 @@ impl VulkanDevice {
         // Check if VK_KHR_portability_subset is available and add it if it is
         // This is required on macOS with MoltenVK
         let portability_subset_ext = b"VK_KHR_portability_subset\0";
-        if available_extensions.iter().any(|ext| {
-            unsafe {
-                std::ffi::CStr::from_ptr(ext.extension_name.as_ptr()) ==
-                std::ffi::CStr::from_bytes_with_nul(portability_subset_ext).unwrap()
-            }
+        if available_extensions.iter().any(|ext| unsafe {
+            std::ffi::CStr::from_ptr(ext.extension_name.as_ptr())
+                == std::ffi::CStr::from_bytes_with_nul(portability_subset_ext).unwrap()
         }) {
             debug!("VK_KHR_portability_subset extension is available, enabling it");
             device_extension_names.push(
                 std::ffi::CStr::from_bytes_with_nul(portability_subset_ext)
                     .unwrap()
-                    .as_ptr()
+                    .as_ptr(),
             );
         } else {
             debug!("VK_KHR_portability_subset extension not available");
@@ -89,8 +110,16 @@ impl VulkanDevice {
 
         let features = unsafe { instance.get_physical_device_features(physical_device) };
         let _required_features = vk::PhysicalDeviceFeatures {
-            shader_float64: if features.shader_float64 == vk::TRUE { vk::TRUE } else { vk::FALSE },
-            shader_int64: if features.shader_int64 == vk::TRUE { vk::TRUE } else { vk::FALSE },
+            shader_float64: if features.shader_float64 == vk::TRUE {
+                vk::TRUE
+            } else {
+                vk::FALSE
+            },
+            shader_int64: if features.shader_int64 == vk::TRUE {
+                vk::TRUE
+            } else {
+                vk::FALSE
+            },
             ..Default::default()
         };
 
@@ -114,16 +143,13 @@ impl VulkanDevice {
     }
 
     fn find_compute_queue_family(instance: &Instance, device: vk::PhysicalDevice) -> Option<u32> {
-        let queue_family_properties = unsafe {
-            instance.get_physical_device_queue_family_properties(device)
-        };
+        let queue_family_properties =
+            unsafe { instance.get_physical_device_queue_family_properties(device) };
 
         queue_family_properties
             .iter()
             .enumerate()
-            .find(|(_, properties)| {
-                properties.queue_flags.contains(vk::QueueFlags::COMPUTE)
-            })
+            .find(|(_, properties)| properties.queue_flags.contains(vk::QueueFlags::COMPUTE))
             .map(|(index, _)| index as u32)
     }
 

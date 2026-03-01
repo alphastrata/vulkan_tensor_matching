@@ -32,15 +32,15 @@ fn ensure_vulkan_ready() -> PyResult<()> {
     // Try to load MoltenVK explicitly using dlopen
     use std::ffi::CString;
     use std::os::raw::{c_char, c_int, c_void};
-    
+
     unsafe extern "C" {
         fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
         fn dlerror() -> *mut c_char;
     }
-    
+
     let moltenvk_path = CString::new("/opt/homebrew/lib/libMoltenVK.dylib")
         .map_err(|e| PyValueError::new_err(format!("Failed to create path: {}", e)))?;
-    
+
     unsafe {
         let handle = dlopen(moltenvk_path.as_ptr(), 1); // RTLD_LAZY | RTLD_GLOBAL
         if handle.is_null() {
@@ -54,7 +54,7 @@ fn ensure_vulkan_ready() -> PyResult<()> {
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -117,7 +117,10 @@ impl PyImageData {
     fn __repr__(&self) -> String {
         format!(
             "ImageData(width={}, height={}, channels={}, data_len={})",
-            self.width, self.height, self.channels, self.data.len()
+            self.width,
+            self.height,
+            self.channels,
+            self.data.len()
         )
     }
 }
@@ -168,8 +171,9 @@ pub struct PyVulkanTensorMatcher {
 impl PyVulkanTensorMatcher {
     #[new]
     fn new() -> PyResult<Self> {
-        let matcher = VulkanTensorMatcher::new()
-            .map_err(|e| PyValueError::new_err(format!("Failed to initialize Vulkan matcher: {}", e)))?;
+        let matcher = VulkanTensorMatcher::new().map_err(|e| {
+            PyValueError::new_err(format!("Failed to initialize Vulkan matcher: {}", e))
+        })?;
         Ok(Self {
             matcher: Some(matcher),
         })
@@ -319,14 +323,14 @@ fn find_extremes(image: &PyImageData) -> PyResult<PyObject> {
         let ((max_val, max_pos), (min_val, min_pos)) = img.find_extremes();
 
         let dict = PyDict::new(py);
-        
+
         // Create max dict
         let max_dict = PyDict::new(py);
         max_dict.set_item("value", max_val)?;
         max_dict.set_item("x", max_pos.0)?;
         max_dict.set_item("y", max_pos.1)?;
         dict.set_item("max", max_dict)?;
-        
+
         // Create min dict
         let min_dict = PyDict::new(py);
         min_dict.set_item("value", min_val)?;
@@ -363,7 +367,7 @@ fn compress_image(image: &PyImageData, factor: u32) -> PyResult<PyImageData> {
 fn rust_python_lib(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Ensure Vulkan/MoltenVK is loaded on macOS
     ensure_vulkan_ready()?;
-    
+
     m.add("VERSION", VERSION)?;
     m.add("AUTHOR", AUTHOR)?;
     m.add_class::<PyImageData>()?;

@@ -1,9 +1,11 @@
-use ash::{vk, Device};
-use gpu_allocator::vulkan::{Allocator, AllocatorCreateDesc, Allocation, AllocationCreateDesc, AllocationScheme};
-use gpu_allocator::{AllocationSizes, MemoryLocation};
 use crate::error::{Result, TensorMatchingError};
-use std::sync::{Arc, Mutex};
+use ash::{Device, vk};
+use gpu_allocator::vulkan::{
+    Allocation, AllocationCreateDesc, AllocationScheme, Allocator, AllocatorCreateDesc,
+};
+use gpu_allocator::{AllocationSizes, MemoryLocation};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// Key for identifying buffer pools by size and usage
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -54,7 +56,8 @@ impl VulkanMemoryManager {
             debug_settings,
             buffer_device_address: false,
             allocation_sizes: AllocationSizes::default(),
-        }).map_err(TensorMatchingError::GpuAllocatorError)?;
+        })
+        .map_err(TensorMatchingError::GpuAllocatorError)?;
 
         Ok(Self {
             device,
@@ -81,9 +84,10 @@ impl VulkanMemoryManager {
         {
             let mut pool = self.buffer_pool.lock().unwrap();
             if let Some(buffers) = pool.get_mut(&key)
-                && let Some(buffer) = buffers.pop() {
-                    return Ok(buffer);
-                }
+                && let Some(buffer) = buffers.pop()
+            {
+                return Ok(buffer);
+            }
         }
 
         // No buffer available in pool, create a new one
@@ -145,16 +149,21 @@ impl VulkanMemoryManager {
         let buffer = unsafe { self.device.create_buffer(&buffer_info, None) }?;
         let requirements = unsafe { self.device.get_buffer_memory_requirements(buffer) };
 
-        let allocation = self.allocator.lock().unwrap().allocate(&AllocationCreateDesc {
-            name,
-            requirements,
-            location: memory_location,
-            linear: true,
-            allocation_scheme: AllocationScheme::GpuAllocatorManaged,
-        })?;
+        let allocation = self
+            .allocator
+            .lock()
+            .unwrap()
+            .allocate(&AllocationCreateDesc {
+                name,
+                requirements,
+                location: memory_location,
+                linear: true,
+                allocation_scheme: AllocationScheme::GpuAllocatorManaged,
+            })?;
 
         unsafe {
-            self.device.bind_buffer_memory(buffer, allocation.memory(), allocation.offset())?;
+            self.device
+                .bind_buffer_memory(buffer, allocation.memory(), allocation.offset())?;
         }
 
         Ok(VulkanBuffer {
@@ -180,7 +189,12 @@ impl VulkanMemoryManager {
     }
 
     /// Create a buffer for image data with optimal memory layout
-    pub fn create_image_buffer(&self, width: u32, height: u32, channels: u32) -> Result<VulkanBuffer> {
+    pub fn create_image_buffer(
+        &self,
+        width: u32,
+        height: u32,
+        channels: u32,
+    ) -> Result<VulkanBuffer> {
         let size = (width * height * channels) as u64 * std::mem::size_of::<f32>() as u64;
 
         self.create_tensor_buffer(
@@ -210,7 +224,9 @@ impl VulkanMemoryManager {
                     std::ptr::copy_nonoverlapping(data.as_ptr(), mapped_ptr, data.len());
                 }
             } else {
-                return Err(TensorMatchingError::VulkanError(ash::vk::Result::ERROR_MEMORY_MAP_FAILED));
+                return Err(TensorMatchingError::VulkanError(
+                    ash::vk::Result::ERROR_MEMORY_MAP_FAILED,
+                ));
             }
         }
         Ok(())
@@ -225,7 +241,9 @@ impl VulkanMemoryManager {
                     std::ptr::copy_nonoverlapping(mapped_ptr, data.as_mut_ptr(), data.len());
                 }
             } else {
-                return Err(TensorMatchingError::VulkanError(ash::vk::Result::ERROR_MEMORY_MAP_FAILED));
+                return Err(TensorMatchingError::VulkanError(
+                    ash::vk::Result::ERROR_MEMORY_MAP_FAILED,
+                ));
             }
         }
         Ok(())

@@ -12,7 +12,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
-    "black>=24.0.0",
+    "ruff>=0.1.0",
     "opencv-python>=4.8.0",
     "numpy>=1.26.0",
 ]
@@ -20,10 +20,22 @@ dev = [
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
-    "black>=24.0.0",
+    "ruff>=0.1.0",
     "opencv-python>=4.8.0",
     "numpy>=1.26.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.maturin]
 module-name = "rust_python_lib"

@@ -1,13 +1,13 @@
+pub mod fft;
 pub mod loader;
 pub mod matcher;
 pub mod tensor_matcher;
-pub mod fft;
 
+use crate::image::matcher::TemplateMatch;
 use ab_glyph::{FontRef, PxScale};
 use image::{Rgb, RgbImage};
 use imageproc::drawing::{draw_hollow_rect_mut, draw_text_mut};
 use imageproc::rect::Rect;
-use crate::image::matcher::TemplateMatch;
 use std::path::Path;
 
 /// Define a consistent colour palette for debugging annotations
@@ -53,8 +53,16 @@ pub fn annotate_image_with_matches(
         };
 
         // Calculate the bounding box (centred on the match coordinates)
-        let half_width = if template_width > 0 { template_width / 2 } else { 15 };
-        let half_height = if template_height > 0 { template_height / 2 } else { 15 };
+        let half_width = if template_width > 0 {
+            template_width / 2
+        } else {
+            15
+        };
+        let half_height = if template_height > 0 {
+            template_height / 2
+        } else {
+            15
+        };
         let x1 = (m.x.saturating_sub(half_width)) as i32;
         let y1 = (m.y.saturating_sub(half_height)) as i32;
         let x2 = (m.x + half_width) as i32;
@@ -63,11 +71,11 @@ pub fn annotate_image_with_matches(
         // Draw a more prominent bounding box with centre indicator
         let rect = Rect::at(x1, y1).of_size((x2 - x1) as u32, (y2 - y1) as u32);
         draw_hollow_rect_mut(image, rect, colour);
-        
+
         // Add centre crosshairs for precise location identification
         let centre_x = m.x as i32;
         let centre_y = m.y as i32;
-        
+
         // Draw small crosshair at centre
         let cross_size = 8.min(image.width().min(image.height()) as i32 / 4); // Ensure it fits
         for dx in -cross_size..=cross_size {
@@ -84,7 +92,13 @@ pub fn annotate_image_with_matches(
         }
 
         // Create text label with match information
-        let text = format!("T{}: ({}, {}) corr: {:.2}", index + 1, m.x, m.y, m.correlation);
+        let text = format!(
+            "T{}: ({}, {}) corr: {:.2}",
+            index + 1,
+            m.x,
+            m.y,
+            m.correlation
+        );
 
         // Draw the text label above the bounding box
         draw_text_mut(
@@ -97,7 +111,12 @@ pub fn annotate_image_with_matches(
             &text,
         );
 
-        log::debug!("Match annotation: ({}, {}) correlation: {:.3}", m.x, m.y, m.correlation);
+        log::debug!(
+            "Match annotation: ({}, {}) correlation: {:.3}",
+            m.x,
+            m.y,
+            m.correlation
+        );
     }
 
     Ok(())
@@ -129,8 +148,16 @@ pub fn annotate_image_with_tensor_matches(
         };
 
         // Calculate the bounding box (centred on the match coordinates)
-        let half_width = if template_width > 0 { template_width / 2 } else { 15 };
-        let half_height = if template_height > 0 { template_height / 2 } else { 15 };
+        let half_width = if template_width > 0 {
+            template_width / 2
+        } else {
+            15
+        };
+        let half_height = if template_height > 0 {
+            template_height / 2
+        } else {
+            15
+        };
         let x1 = (m.x.saturating_sub(half_width)) as i32;
         let y1 = (m.y.saturating_sub(half_height)) as i32;
         let x2 = (m.x + half_width) as i32;
@@ -139,11 +166,11 @@ pub fn annotate_image_with_tensor_matches(
         // Draw a more prominent bounding box with centre indicator
         let rect = Rect::at(x1, y1).of_size((x2 - x1) as u32, (y2 - y1) as u32);
         draw_hollow_rect_mut(image, rect, colour);
-        
+
         // Add centre crosshairs for precise location identification
         let centre_x = m.x as i32;
         let centre_y = m.y as i32;
-        
+
         // Draw small crosshair at centre
         let cross_size = 8.min(image.width().min(image.height()) as i32 / 4); // Ensure it fits
         for dx in -cross_size..=cross_size {
@@ -160,7 +187,14 @@ pub fn annotate_image_with_tensor_matches(
         }
 
         // Create text label with match information including rotation
-        let text = format!("T{}: ({}, {}) corr: {:.2} @ {:.1}°", index + 1, m.x, m.y, m.correlation, m.rotation_angle.to_degrees());
+        let text = format!(
+            "T{}: ({}, {}) corr: {:.2} @ {:.1}°",
+            index + 1,
+            m.x,
+            m.y,
+            m.correlation,
+            m.rotation_angle.to_degrees()
+        );
 
         // Draw the text label above the bounding box
         draw_text_mut(
@@ -173,8 +207,13 @@ pub fn annotate_image_with_tensor_matches(
             &text,
         );
 
-        log::debug!("Tensor match annotation: ({}, {}) correlation: {:.3}, rotation: {:.1}°",
-                   m.x, m.y, m.correlation, m.rotation_angle.to_degrees());
+        log::debug!(
+            "Tensor match annotation: ({}, {}) correlation: {:.3}, rotation: {:.1}°",
+            m.x,
+            m.y,
+            m.correlation,
+            m.rotation_angle.to_degrees()
+        );
     }
 
     Ok(())
@@ -244,7 +283,14 @@ pub fn save_debug_output_if_enabled<P: AsRef<Path>>(
         enabled,
         output_dir: None,
     };
-    save_debug_output(image, filename, matches_count, processing_time, methodology, Some(&config))
+    save_debug_output(
+        image,
+        filename,
+        matches_count,
+        processing_time,
+        methodology,
+        Some(&config),
+    )
 }
 
 /// Convert ImageData to RgbImage for visualisation
@@ -264,5 +310,5 @@ pub fn image_data_to_rgb_image(image_data: &ImageData) -> RgbImage {
 }
 
 pub use loader::ImageData;
-pub use matcher::VulkanTensorMatcher;  // Don't re-export TemplateMatch to avoid duplication
+pub use matcher::VulkanTensorMatcher; // Don't re-export TemplateMatch to avoid duplication
 pub use tensor_matcher::TensorTemplateMatch;

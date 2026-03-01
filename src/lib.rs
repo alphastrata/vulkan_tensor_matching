@@ -54,6 +54,7 @@ pub mod vulkan;
 
 pub use error::{Result, TensorMatchingError};
 pub use image::{
-    annotate_image_with_matches, image_data_to_rgb_image, loader::ImageData, loader::MatchTemplateMethod, loader::TestShape,
-    matcher::TemplateMatch, matcher::VulkanTensorMatcher, tensor_matcher::TensorTemplateMatch,
+    annotate_image_with_matches, image_data_to_rgb_image, loader::ImageData,
+    loader::MatchTemplateMethod, loader::TestShape, matcher::TemplateMatch,
+    matcher::VulkanTensorMatcher, tensor_matcher::TensorTemplateMatch,
 };
