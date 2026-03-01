@@ -4,7 +4,7 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType};
+use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -21,32 +21,46 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Library author
 pub const AUTHOR: &str = "jer, <alphastrata@gmail.com>";
 
+/// Preload MoltenVK on macOS (required for Python where DYLD_LIBRARY_PATH is stripped)
+#[cfg(target_os = "macos")]
+#[link(name = "MoltenVK")]
+unsafe extern "C" {}
+
 /// Initialize Vulkan environment for Python (macOS/MoltenVK specific)
 #[cfg(target_os = "macos")]
-fn init_vulkan_env() {
-    // On macOS, ensure MoltenVK can be found
-    // This is called before any Vulkan operations
-    use std::env;
+fn ensure_vulkan_ready() -> PyResult<()> {
+    // Try to load MoltenVK explicitly using dlopen
+    use std::ffi::CString;
+    use std::os::raw::{c_char, c_int, c_void};
     
-    // Set VK_ICD_FILENAMES if not already set
-    if env::var("VK_ICD_FILENAMES").is_err() {
-        // Common MoltenVK ICD locations on macOS
-        let icd_paths = [
-            "/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json",
-            "/usr/local/etc/vulkan/icd.d/MoltenVK_icd.json",
-        ];
-        for path in icd_paths {
-            if std::path::Path::new(path).exists() {
-                unsafe { env::set_var("VK_ICD_FILENAMES", path) };
-                break;
+    unsafe extern "C" {
+        fn dlopen(filename: *const c_char, flag: c_int) -> *mut c_void;
+        fn dlerror() -> *mut c_char;
+    }
+    
+    let moltenvk_path = CString::new("/opt/homebrew/lib/libMoltenVK.dylib")
+        .map_err(|e| PyValueError::new_err(format!("Failed to create path: {}", e)))?;
+    
+    unsafe {
+        let handle = dlopen(moltenvk_path.as_ptr(), 1); // RTLD_LAZY | RTLD_GLOBAL
+        if handle.is_null() {
+            let err = dlerror();
+            if !err.is_null() {
+                let err_str = std::ffi::CStr::from_ptr(err).to_string_lossy();
+                return Err(PyValueError::new_err(format!(
+                    "Failed to preload MoltenVK: {}",
+                    err_str
+                )));
             }
         }
     }
+    
+    Ok(())
 }
 
 #[cfg(not(target_os = "macos"))]
-fn init_vulkan_env() {
-    // No special setup needed on other platforms
+fn ensure_vulkan_ready() -> PyResult<()> {
+    Ok(())
 }
 
 /// Python wrapper for ImageData
@@ -347,6 +361,9 @@ fn compress_image(image: &PyImageData, factor: u32) -> PyResult<PyImageData> {
 /// Python module for rust_python_lib
 #[pymodule]
 fn rust_python_lib(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Ensure Vulkan/MoltenVK is loaded on macOS
+    ensure_vulkan_ready()?;
+    
     m.add("VERSION", VERSION)?;
     m.add("AUTHOR", AUTHOR)?;
     m.add_class::<PyImageData>()?;

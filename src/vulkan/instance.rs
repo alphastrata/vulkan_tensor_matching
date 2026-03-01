@@ -14,10 +14,12 @@ fn load_vulkan_entry() -> Result<Entry> {
         "/usr/local/lib/libMoltenVK.dylib",
     ];
     
+    debug!("Attempting to load Vulkan on macOS...");
     for path in &paths {
+        debug!("Trying path: {}", path);
         match unsafe { Entry::load_from(path) } {
             Ok(entry) => {
-                debug!("Loaded Vulkan from: {}", path);
+                debug!("SUCCESS: Loaded Vulkan from: {}", path);
                 return Ok(entry);
             }
             Err(e) => {
@@ -27,6 +29,7 @@ fn load_vulkan_entry() -> Result<Entry> {
         }
     }
     
+    debug!("All paths failed, falling back to default load");
     // Fall back to default loading
     unsafe { Entry::load() }.map_err(|e| TensorMatchingError::VulkanEntryLoadError(e.to_string()))
 }
@@ -73,16 +76,26 @@ impl VulkanInstance {
         let available_extensions = unsafe { entry.enumerate_instance_extension_properties(None) }
             .unwrap_or_default();
         
+        debug!("Found {} Vulkan extensions", available_extensions.len());
+        
         // Check for debug utils extension
         let has_debug_utils = available_extensions.iter().any(|ext| {
             let ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
-            ext_name == ash::ext::debug_utils::NAME
+            let matches = ext_name == ash::ext::debug_utils::NAME;
+            if matches {
+                debug!("Found debug utils: {}", ext_name.to_string_lossy());
+            }
+            matches
         });
         
         // Check for portability enumeration (needed on macOS)
         let has_portability = available_extensions.iter().any(|ext| {
             let ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
-            ext_name == vk::KHR_PORTABILITY_ENUMERATION_NAME
+            let matches = ext_name == vk::KHR_PORTABILITY_ENUMERATION_NAME;
+            if matches {
+                debug!("Found portability: {}", ext_name.to_string_lossy());
+            }
+            matches
         });
 
         // Build extension list based on what's available
@@ -93,13 +106,19 @@ impl VulkanInstance {
             if has_portability {
                 extension_names.push(vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr());
                 debug!("Enabled portability enumeration");
+            } else {
+                debug!("Portability enumeration not available");
             }
         }
         
         if has_debug_utils {
             extension_names.push(ash::ext::debug_utils::NAME.as_ptr());
             debug!("Enabled debug utils extension");
+        } else {
+            debug!("Debug utils not available");
         }
+        
+        debug!("Enabling {} extensions", extension_names.len());
 
         // Only try to enable validation if enabled and layers exist
         let layer_names = if enable_validation {
