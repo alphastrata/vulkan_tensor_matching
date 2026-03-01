@@ -4,9 +4,16 @@
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyType};
+use pyo3::types::{PyDict, PyList, PyType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+// Re-export the actual library types
+use crate::image::{
+    loader::ImageData,
+    matcher::{TemplateMatch, VulkanTensorMatcher},
+    tensor_matcher::TensorTemplateMatch,
+};
 
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -14,237 +21,299 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Library author
 pub const AUTHOR: &str = "jer, <alphastrata@gmail.com>";
 
-/// Result of processing numbers
-#[pyclass(name = "ProcessResult")]
+/// Python wrapper for ImageData
+#[pyclass(name = "ImageData")]
 #[derive(Clone)]
-pub struct PyProcessResult {
+pub struct PyImageData {
     #[pyo3(get)]
-    pub sum: f64,
+    pub data: Vec<f32>,
     #[pyo3(get)]
-    pub average: f64,
+    pub width: u32,
     #[pyo3(get)]
-    pub min: f64,
+    pub height: u32,
     #[pyo3(get)]
-    pub max: f64,
-    #[pyo3(get)]
-    pub count: usize,
+    pub channels: u32,
 }
 
 #[pymethods]
-impl PyProcessResult {
-    fn __repr__(&self) -> String {
-        format!(
-            "ProcessResult(sum={}, average={}, min={}, max={}, count={})",
-            self.sum, self.average, self.min, self.max, self.count
-        )
-    }
-}
-
-/// A person with name, age, and email
-#[pyclass(name = "Person")]
-#[derive(Clone, Serialize, Deserialize)]
-pub struct PyPerson {
-    #[pyo3(get, set)]
-    pub name: String,
-    #[pyo3(get, set)]
-    pub age: u32,
-    #[pyo3(get, set)]
-    pub email: Option<String>,
-}
-
-#[pymethods]
-impl PyPerson {
+impl PyImageData {
     #[new]
-    #[pyo3(signature = (name, age, email=None))]
-    fn new(name: String, age: u32, email: Option<String>) -> PyResult<Self> {
-        if name.trim().is_empty() {
-            return Err(PyValueError::new_err("Name cannot be empty"));
+    #[pyo3(signature = (data, width, height, channels=1))]
+    fn new(data: Vec<f32>, width: u32, height: u32, channels: u32) -> PyResult<Self> {
+        let expected_len = (width * height * channels) as usize;
+        if data.len() != expected_len {
+            return Err(PyValueError::new_err(format!(
+                "Data length {} does not match dimensions {}x{}x{}={}",
+                data.len(),
+                width,
+                height,
+                channels,
+                expected_len
+            )));
         }
-        Ok(Self { name, age, email })
+        Ok(Self {
+            data,
+            width,
+            height,
+            channels,
+        })
     }
 
-    fn is_adult(&self) -> bool {
-        self.age >= 18
-    }
-
-    fn greet(&self) -> String {
-        format!(
-            "Hello, my name is {} and I am {} years old.",
-            self.name, self.age
-        )
-    }
-
-    fn to_json(&self) -> PyResult<String> {
-        serde_json::to_string(self).map_err(|e| PyValueError::new_err(e.to_string()))
-    }
-
-    #[classmethod]
-    fn from_json(_cls: &Bound<'_, PyType>, json_str: &str) -> PyResult<Self> {
-        serde_json::from_str(json_str).map_err(|e| PyValueError::new_err(e.to_string()))
+    /// Load an image from file path
+    #[staticmethod]
+    fn from_file(path: &str) -> PyResult<Self> {
+        ImageData::from_file(path)
+            .map(|img| PyImageData {
+                data: img.data,
+                width: img.width,
+                height: img.height,
+                channels: img.channels,
+            })
+            .map_err(|e| PyValueError::new_err(format!("Failed to load image: {}", e)))
     }
 
     fn __repr__(&self) -> String {
         format!(
-            "Person(name='{}', age={}, email={:?})",
-            self.name, self.age, self.email
+            "ImageData(width={}, height={}, channels={}, data_len={})",
+            self.width, self.height, self.channels, self.data.len()
         )
     }
 }
 
-/// A data point with x, y coordinates and a label
-#[pyclass(name = "DataPoint")]
-#[derive(Clone)]
-pub struct PyDataPoint {
-    #[pyo3(get, set)]
-    pub x: f64,
-    #[pyo3(get, set)]
-    pub y: f64,
-    #[pyo3(get, set)]
-    pub label: String,
+/// Template match result
+#[pyclass(name = "TemplateMatch")]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PyTemplateMatch {
+    #[pyo3(get)]
+    pub x: u32,
+    #[pyo3(get)]
+    pub y: u32,
+    #[pyo3(get)]
+    pub correlation: f32,
+    #[pyo3(get)]
+    pub rotation_angle: f32,
+    #[pyo3(get)]
+    pub confidence: f32,
 }
 
 #[pymethods]
-impl PyDataPoint {
-    #[new]
-    fn new(x: f64, y: f64, label: String) -> Self {
-        Self { x, y, label }
-    }
-
-    fn distance_from_origin(&self) -> f64 {
-        (self.x * self.x + self.y * self.y).sqrt()
-    }
-
-    fn scale(&mut self, factor: f64) {
-        self.x *= factor;
-        self.y *= factor;
-    }
-
+impl PyTemplateMatch {
     fn __repr__(&self) -> String {
-        format!("DataPoint(x={}, y={}, label='{}')", self.x, self.y, self.label)
+        format!(
+            "TemplateMatch(x={}, y={}, correlation={:.4}, rotation={:.2}°, confidence={:.4})",
+            self.x, self.y, self.correlation, self.rotation_angle, self.confidence
+        )
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<PyObject> {
+        let dict = PyDict::new(py);
+        dict.set_item("x", self.x)?;
+        dict.set_item("y", self.y)?;
+        dict.set_item("correlation", self.correlation)?;
+        dict.set_item("rotation_angle", self.rotation_angle)?;
+        dict.set_item("confidence", self.confidence)?;
+        Ok(dict.into())
     }
 }
 
-/// Process a list of numbers and return statistics
-#[pyfunction]
-#[pyo3(signature = (numbers))]
-fn process_numbers(numbers: Vec<f64>) -> PyResult<PyProcessResult> {
-    if numbers.is_empty() {
-        return Err(PyValueError::new_err("Cannot process empty list"));
+/// Vulkan Tensor Matcher - GPU-accelerated template matching
+#[pyclass(name = "VulkanTensorMatcher")]
+pub struct PyVulkanTensorMatcher {
+    matcher: Option<VulkanTensorMatcher>,
+}
+
+#[pymethods]
+impl PyVulkanTensorMatcher {
+    #[new]
+    fn new() -> PyResult<Self> {
+        let matcher = VulkanTensorMatcher::new()
+            .map_err(|e| PyValueError::new_err(format!("Failed to initialize Vulkan matcher: {}", e)))?;
+        Ok(Self {
+            matcher: Some(matcher),
+        })
     }
 
-    let sum: f64 = numbers.iter().sum();
-    let count = numbers.len();
-    let average = sum / count as f64;
-    let min = numbers
-        .iter()
-        .cloned()
-        .fold(f64::INFINITY, f64::min);
-    let max = numbers
-        .iter()
-        .cloned()
-        .fold(f64::NEG_INFINITY, f64::max);
+    /// Perform template matching
+    ///
+    /// Args:
+    ///     target_image: The target image to search in
+    ///     template_image: The template to match
+    ///     correlation_threshold: Minimum correlation threshold (0.0-1.0)
+    ///     max_matches: Maximum number of matches to return
+    ///
+    /// Returns:
+    ///     List of TemplateMatch objects
+    fn match_template(
+        &self,
+        target_image: &PyImageData,
+        template_image: &PyImageData,
+        correlation_threshold: f32,
+        max_matches: usize,
+    ) -> PyResult<Vec<PyTemplateMatch>> {
+        let matcher = self
+            .matcher
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("Matcher not initialized"))?;
 
-    Ok(PyProcessResult {
-        sum,
-        average,
-        min,
-        max,
-        count,
+        let target = ImageData {
+            data: target_image.data.clone(),
+            width: target_image.width,
+            height: target_image.height,
+            channels: target_image.channels,
+        };
+
+        let template = ImageData {
+            data: template_image.data.clone(),
+            width: template_image.width,
+            height: template_image.height,
+            channels: template_image.channels,
+        };
+
+        let matches = matcher
+            .match_template(&target, &template, correlation_threshold, max_matches)
+            .map_err(|e| PyValueError::new_err(format!("Template matching failed: {}", e)))?;
+
+        Ok(matches
+            .into_iter()
+            .map(|m| PyTemplateMatch {
+                x: m.x,
+                y: m.y,
+                correlation: m.correlation,
+                rotation_angle: m.rotation_angle,
+                confidence: m.confidence,
+            })
+            .collect())
+    }
+}
+
+/// Match template method enum
+#[pyclass(name = "MatchTemplateMethod", eq, eq_int)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum PyMatchTemplateMethod {
+    SumOfSquaredErrors,
+    SumOfSquaredErrorsNormalized,
+    CrossCorrelation,
+    CrossCorrelationNormalized,
+}
+
+#[pymethods]
+impl PyMatchTemplateMethod {
+    #[staticmethod]
+    fn sum_of_squared_errors() -> Self {
+        PyMatchTemplateMethod::SumOfSquaredErrors
+    }
+
+    #[staticmethod]
+    fn sum_of_squared_errors_normalized() -> Self {
+        PyMatchTemplateMethod::SumOfSquaredErrorsNormalized
+    }
+
+    #[staticmethod]
+    fn cross_correlation() -> Self {
+        PyMatchTemplateMethod::CrossCorrelation
+    }
+
+    #[staticmethod]
+    fn cross_correlation_normalized() -> Self {
+        PyMatchTemplateMethod::CrossCorrelationNormalized
+    }
+}
+
+/// CPU-based template matching (for comparison/testing)
+#[pyfunction]
+fn match_template_cpu(
+    image: &PyImageData,
+    template: &PyImageData,
+    method: PyMatchTemplateMethod,
+) -> PyResult<PyImageData> {
+    use crate::image::loader::MatchTemplateMethod;
+
+    let method = match method {
+        PyMatchTemplateMethod::SumOfSquaredErrors => MatchTemplateMethod::SumOfSquaredErrors,
+        PyMatchTemplateMethod::SumOfSquaredErrorsNormalized => {
+            MatchTemplateMethod::SumOfSquaredErrorsNormalized
+        }
+        PyMatchTemplateMethod::CrossCorrelation => MatchTemplateMethod::CrossCorrelation,
+        PyMatchTemplateMethod::CrossCorrelationNormalized => {
+            MatchTemplateMethod::CrossCorrelationNormalized
+        }
+    };
+
+    let img = ImageData {
+        data: image.data.clone(),
+        width: image.width,
+        height: image.height,
+        channels: image.channels,
+    };
+
+    let tmpl = ImageData {
+        data: template.data.clone(),
+        width: template.width,
+        height: template.height,
+        channels: template.channels,
+    };
+
+    let result = img.match_template(&tmpl, method);
+
+    Ok(PyImageData {
+        data: result.data,
+        width: result.width,
+        height: result.height,
+        channels: result.channels,
     })
 }
 
-/// Concatenate strings with an optional separator
+/// Find extreme values (min/max) in an image
 #[pyfunction]
-#[pyo3(signature = (strings, separator=None))]
-fn concatenate_strings(strings: Vec<String>, separator: Option<String>) -> String {
-    let sep = separator.unwrap_or_else(|| ", ".to_string());
-    strings.join(&sep)
-}
-
-/// Create a new Person
-#[pyfunction]
-#[pyo3(signature = (name, age, email=None))]
-fn create_person(name: String, age: u32, email: Option<String>) -> PyResult<PyPerson> {
-    if name.trim().is_empty() {
-        return Err(PyValueError::new_err("Name cannot be empty"));
-    }
-    Ok(PyPerson { name, age, email })
-}
-
-/// Analyze a list of data points
-#[pyfunction]
-fn analyze_data(py: Python<'_>, points: Vec<PyDataPoint>) -> PyResult<PyObject> {
-    let dict = PyDict::new(py);
-
-    let total_points = points.len();
-    let sum_x: f64 = points.iter().map(|p| p.x).sum();
-    let sum_y: f64 = points.iter().map(|p| p.y).sum();
-    let average_x = sum_x / total_points as f64;
-    let average_y = sum_y / total_points as f64;
-
-    // Count labels
-    let mut label_counts: HashMap<String, usize> = HashMap::new();
-    for point in &points {
-        *label_counts.entry(point.label.clone()).or_insert(0) += 1;
-    }
-
-    // Convert label_counts to Python dict
-    let label_dict = PyDict::new(py);
-    for (key, value) in label_counts {
-        label_dict.set_item(key, value)?;
-    }
-
-    dict.set_item("total_points", total_points)?;
-    dict.set_item("average_x", average_x)?;
-    dict.set_item("average_y", average_y)?;
-    dict.set_item("label_counts", label_dict)?;
-
-    Ok(dict.into())
-}
-
-/// Process mixed data types
-#[pyfunction]
-fn process_mixed_data(py: Python<'_>, items: Vec<PyObject>) -> PyResult<PyObject> {
-    let dict = PyDict::new(py);
-
-    for (i, item) in items.iter().enumerate() {
-        let key = format!("item_{}", i);
-        let value = item.bind(py);
-        let value_str = if let Ok(b) = value.downcast::<pyo3::types::PyBool>() {
-            format!("bool:{}", b.is_true())
-        } else if let Ok(s) = value.downcast::<pyo3::types::PyString>() {
-            format!("str:{}", s.to_string_lossy())
-        } else if let Ok(n) = value.downcast::<pyo3::types::PyInt>() {
-            format!("int:{}", n.extract::<i64>()?)
-        } else if let Ok(n) = value.downcast::<pyo3::types::PyFloat>() {
-            format!("float:{}", n.extract::<f64>()?)
-        } else {
-            "unknown".to_string()
+fn find_extremes(image: &PyImageData) -> PyResult<PyObject> {
+    Python::with_gil(|py| {
+        let img = ImageData {
+            data: image.data.clone(),
+            width: image.width,
+            height: image.height,
+            channels: image.channels,
         };
-        dict.set_item(key, value_str)?;
-    }
 
-    Ok(dict.into())
+        let ((max_val, max_pos), (min_val, min_pos)) = img.find_extremes();
+
+        let dict = PyDict::new(py);
+        
+        // Create max dict
+        let max_dict = PyDict::new(py);
+        max_dict.set_item("value", max_val)?;
+        max_dict.set_item("x", max_pos.0)?;
+        max_dict.set_item("y", max_pos.1)?;
+        dict.set_item("max", max_dict)?;
+        
+        // Create min dict
+        let min_dict = PyDict::new(py);
+        min_dict.set_item("value", min_val)?;
+        min_dict.set_item("x", min_pos.0)?;
+        min_dict.set_item("y", min_pos.1)?;
+        dict.set_item("min", min_dict)?;
+
+        Ok(dict.into())
+    })
 }
 
-/// Generate Fibonacci sequence
+/// Compress an image by averaging pixels in blocks
 #[pyfunction]
-fn fibonacci(n: usize) -> Vec<u64> {
-    if n == 0 {
-        return vec![];
-    }
+fn compress_image(image: &PyImageData, factor: u32) -> PyResult<PyImageData> {
+    let img = ImageData {
+        data: image.data.clone(),
+        width: image.width,
+        height: image.height,
+        channels: image.channels,
+    };
 
-    let mut seq = Vec::with_capacity(n);
-    let (mut a, mut b) = (0u64, 1u64);
+    let result = img.compress(factor);
 
-    for _ in 0..n {
-        seq.push(a);
-        let next = a + b;
-        a = b;
-        b = next;
-    }
-
-    seq
+    Ok(PyImageData {
+        data: result.data,
+        width: result.width,
+        height: result.height,
+        channels: result.channels,
+    })
 }
 
 /// Python module for rust_python_lib
@@ -252,14 +321,12 @@ fn fibonacci(n: usize) -> Vec<u64> {
 fn rust_python_lib(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("VERSION", VERSION)?;
     m.add("AUTHOR", AUTHOR)?;
-    m.add_class::<PyProcessResult>()?;
-    m.add_class::<PyPerson>()?;
-    m.add_class::<PyDataPoint>()?;
-    m.add_function(wrap_pyfunction!(process_numbers, m)?)?;
-    m.add_function(wrap_pyfunction!(concatenate_strings, m)?)?;
-    m.add_function(wrap_pyfunction!(create_person, m)?)?;
-    m.add_function(wrap_pyfunction!(analyze_data, m)?)?;
-    m.add_function(wrap_pyfunction!(process_mixed_data, m)?)?;
-    m.add_function(wrap_pyfunction!(fibonacci, m)?)?;
+    m.add_class::<PyImageData>()?;
+    m.add_class::<PyTemplateMatch>()?;
+    m.add_class::<PyVulkanTensorMatcher>()?;
+    m.add_class::<PyMatchTemplateMethod>()?;
+    m.add_function(wrap_pyfunction!(match_template_cpu, m)?)?;
+    m.add_function(wrap_pyfunction!(find_extremes, m)?)?;
+    m.add_function(wrap_pyfunction!(compress_image, m)?)?;
     Ok(())
 }

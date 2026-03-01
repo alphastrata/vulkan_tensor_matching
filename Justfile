@@ -23,7 +23,7 @@ run:
 # Run all tests
 test:
     cargo test
-    uv run python tests/test_basic.py
+    uv run python tests/test_vulkan_matching.py
 
 # Clean build artifacts
 clean:

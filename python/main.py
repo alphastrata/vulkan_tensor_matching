@@ -1,112 +1,168 @@
 #!/usr/bin/env python3
 """
-Example usage of the Rust-Python library.
+Example usage of the vulkan_tensor_matching Python bindings.
+
+Demonstrates CPU and GPU-accelerated template matching with comparison to OpenCV.
 """
 
-import json
+import numpy as np
+from pathlib import Path
+
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+except ImportError:
+    OPENCV_AVAILABLE = False
+    print("OpenCV not available - some examples will be skipped")
+
 from rust_python_lib import (
-    process_numbers,
-    concatenate_strings,
-    create_person,
-    analyze_data,
-    process_mixed_data,
-    fibonacci,
-    Person,
-    DataPoint,
-    ProcessResult,
+    ImageData,
+    TemplateMatch,
+    VulkanTensorMatcher,
+    MatchTemplateMethod,
+    match_template_cpu,
+    find_extremes,
+    compress_image,
     VERSION,
     AUTHOR,
 )
 
 
+def image_data_to_numpy(image_data: ImageData) -> np.ndarray:
+    """Convert ImageData to numpy array."""
+    return np.array(image_data.data, dtype=np.float32).reshape(
+        (image_data.height, image_data.width)
+    )
+
+
+def numpy_to_image_data(arr: np.ndarray) -> ImageData:
+    """Convert numpy array to ImageData."""
+    arr = arr.astype(np.float32)
+    return ImageData(
+        data=arr.flatten().tolist(),
+        width=arr.shape[1],
+        height=arr.shape[0],
+        channels=1,
+    )
+
+
 def main():
-    print(f"Using library version: {VERSION}")
+    print(f"vulkan_tensor_matching Python bindings v{VERSION}")
     print(f"Author: {AUTHOR}")
-    print("-" * 50)
-
-    # Example 1: Process numbers
-    print("1. Processing numbers:")
-    numbers = [1.5, 2.5, 3.5, 4.5, 5.5]
-    result: ProcessResult = process_numbers(numbers)
-    print(f"   Numbers: {numbers}")
-    print(f"   Sum: {result.sum}, Average: {result.average}")
-    print(f"   Min: {result.min}, Max: {result.max}, Count: {result.count}")
-    print()
-
-    # Example 2: String concatenation
-    print("2. String concatenation:")
-    strings = ["Hello", "World", "from", "Rust"]
-    concatenated = concatenate_strings(strings, separator=" | ")
-    print(f"   Strings: {strings}")
-    print(f"   Result: {concatenated}")
-    print()
-
-    # Example 3: Working with Person struct
-    print("3. Working with Person:")
-    person = create_person("Alice", 30, "alice@example.com")
-    print(f"   Created: {person}")
-    print(f"   Is adult: {person.is_adult()}")
-    print(f"   Greeting: {person.greet()}")
-
-    # JSON serialization/deserialization
-    json_str = person.to_json()
-    print(f"   JSON: {json_str}")
-
-    person_copy = Person.from_json(json_str)
-    print(f"   From JSON: {person_copy}")
-    print()
-
-    # Example 4: DataPoint analysis
-    print("4. DataPoint analysis:")
-    points = [
-        DataPoint(1.0, 2.0, "A"),
-        DataPoint(3.0, 4.0, "B"),
-        DataPoint(5.0, 6.0, "A"),
-        DataPoint(7.0, 8.0, "C"),
-        DataPoint(2.0, 3.0, "B"),
-    ]
-
-    print(f"   Points: {len(points)} data points")
-    for i, point in enumerate(points):
-        print(
-            f"     Point {i}: ({point.x}, {point.y}) '{point.label}' "
-            f"distance={point.distance_from_origin():.2f}"
+    print("=" * 60)
+    
+    # Example 1: Basic ImageData operations
+    print("\n1. ImageData operations:")
+    print("-" * 40)
+    
+    # Create a simple test image
+    test_image = np.zeros((50, 50), dtype=np.float32)
+    test_image[20:30, 20:30] = 1.0  # Bright square in center
+    
+    img = numpy_to_image_data(test_image)
+    print(f"   Created image: {img}")
+    
+    # Find extremes
+    extremes = find_extremes(img)
+    print(f"   Max value: {extremes['max']['value']:.4f} at ({extremes['max']['x']}, {extremes['max']['y']})")
+    print(f"   Min value: {extremes['min']['value']:.4f} at ({extremes['min']['x']}, {extremes['min']['y']})")
+    
+    # Compress image
+    compressed = compress_image(img, factor=2)
+    print(f"   Compressed: {compressed.width}x{compressed.height} (from {img.width}x{img.height})")
+    
+    # Example 2: CPU template matching
+    print("\n2. CPU Template Matching:")
+    print("-" * 40)
+    
+    # Create template from a region of the image
+    template = test_image[20:30, 20:30].copy()
+    
+    img_data = numpy_to_image_data(test_image)
+    tmpl_data = numpy_to_image_data(template)
+    
+    # Run template matching
+    result = match_template_cpu(
+        img_data, tmpl_data,
+        MatchTemplateMethod.cross_correlation_normalized()
+    )
+    result_arr = image_data_to_numpy(result)
+    
+    # Find best match location
+    best_y, best_x = np.unravel_index(np.argmax(result_arr), result_arr.shape)
+    best_score = result_arr[best_y, best_x]
+    
+    print(f"   Template size: {template.shape[0]}x{template.shape[1]}")
+    print(f"   Best match at: ({best_x}, {best_y}) with score: {best_score:.4f}")
+    print(f"   Expected location: around (25, 25) - center of bright square")
+    
+    # Example 3: Compare with OpenCV
+    if OPENCV_AVAILABLE:
+        print("\n3. OpenCV Comparison:")
+        print("-" * 40)
+        
+        cv_result = cv2.matchTemplate(test_image, template, cv2.TM_CCOEFF_NORMED)
+        cv_best_y, cv_best_x = np.unravel_index(np.argmax(cv_result), cv_result.shape)
+        cv_best_score = cv_result[cv_best_y, cv_best_x]
+        
+        print(f"   OpenCV best match: ({cv_best_x}, {cv_best_y}) with score: {cv_best_score:.4f}")
+        print(f"   Rust best match:   ({best_x}, {best_y}) with score: {best_score:.4f}")
+        
+        # Check if both found similar locations
+        distance = np.sqrt((best_x - cv_best_x)**2 + (best_y - cv_best_y)**2)
+        print(f"   Location difference: {distance:.2f} pixels")
+        
+        if distance < 5:
+            print("   ✓ Both implementations found similar match locations!")
+        else:
+            print("   ⚠ Match locations differ (may be due to different algorithms)")
+    else:
+        print("\n3. OpenCV Comparison: SKIPPED (OpenCV not installed)")
+    
+    # Example 4: GPU-accelerated matching (if Vulkan available)
+    print("\n4. GPU-accelerated Template Matching (Vulkan):")
+    print("-" * 40)
+    
+    try:
+        matcher = VulkanTensorMatcher()
+        print("   Vulkan matcher initialized successfully!")
+        
+        # Try matching with a threshold
+        matches = matcher.match_template(
+            img_data, tmpl_data,
+            correlation_threshold=0.5,
+            max_matches=5
         )
-
-    analysis = analyze_data(points)
-    print("   Analysis:")
-    for key, value in analysis.items():
-        print(f"     {key}: {value}")
-    print()
-
-    # Example 5: Process mixed data
-    print("5. Processing mixed data:")
-    mixed_list = ["hello", 42, 3.14, True, False, "world", 100]
-    mixed_result = process_mixed_data(mixed_list)
-    print(f"   Input: {mixed_list}")
-    print(f"   Result: {json.dumps(mixed_result, indent=4)}")
-    print()
-
-    # Example 6: Fibonacci sequence
-    print("6. Fibonacci sequence:")
-    for n in [5, 10, 15]:
-        fib_seq = fibonacci(n)
-        print(f"   First {n} Fibonacci numbers: {fib_seq}")
-
-    # Example 7: Error handling
-    print("\n7. Error handling examples:")
-    try:
-        process_numbers([])
+        
+        print(f"   Found {len(matches)} matches above threshold:")
+        for i, match in enumerate(matches[:3]):  # Show top 3
+            print(f"     {i+1}. ({match.x}, {match.y}) - correlation: {match.correlation:.4f}")
+            
     except ValueError as e:
-        print(f"   Expected error: {e}")
-
-    try:
-        create_person("", 30, None)
-    except ValueError as e:
-        print(f"   Expected error: {e}")
-
-    print("\n" + "=" * 50)
-    print("All examples completed successfully!")
+        print(f"   Vulkan not available: {e}")
+        print("   (This is expected on systems without Vulkan support)")
+    
+    # Example 5: Load image from file
+    print("\n5. Loading Image from File:")
+    print("-" * 40)
+    
+    test_assets = Path(__file__).parent.parent / "test_assets"
+    lenna_path = test_assets / "lenna.png"
+    
+    if lenna_path.exists():
+        lenna = ImageData.from_file(str(lenna_path))
+        print(f"   Loaded Lenna: {lenna.width}x{lenna.height}")
+        
+        # Find extremes in Lenna
+        lenna_extremes = find_extremes(lenna)
+        print(f"   Max intensity: {lenna_extremes['max']['value']:.4f}")
+        print(f"   Min intensity: {lenna_extremes['min']['value']:.4f}")
+    else:
+        print(f"   Lenna image not found at {lenna_path}")
+        print("   (This is expected if test assets are not installed)")
+    
+    print("\n" + "=" * 60)
+    print("Examples completed!")
 
 
 if __name__ == "__main__":
