@@ -1,11 +1,7 @@
-//! Minimal Python bindings for vulkan_tensor_matching
-
 use pyo3::prelude::*;
 
-/// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Python wrapper for ImageData
 #[pyclass(name = "ImageData")]
 #[derive(Clone)]
 pub struct PyImageData {
@@ -30,7 +26,6 @@ impl PyImageData {
         Ok(Self { data, width, height })
     }
 
-    /// Load image from file (grayscale)
     #[staticmethod]
     fn from_file(path: &str) -> PyResult<Self> {
         use crate::image::loader::ImageData as RustImageData;
@@ -44,7 +39,6 @@ impl PyImageData {
     }
 }
 
-/// Python wrapper for VulkanTensorMatcher
 #[pyclass(name = "VulkanTensorMatcher")]
 pub struct PyVulkanTensorMatcher {
     inner: crate::image::tensor_matcher::VulkanTensorMatcher,
@@ -59,16 +53,6 @@ impl PyVulkanTensorMatcher {
         Ok(Self { inner })
     }
 
-    /// Match template against target image
-    /// 
-    /// Args:
-    ///     target: Target image
-    ///     template: Template to find
-    ///     threshold: Minimum correlation (0.0-1.0)
-    ///     max_matches: Maximum matches to return
-    /// 
-    /// Returns:
-    ///     List of TemplateMatch objects
     fn match_template(
         &self,
         target: &PyImageData,
@@ -107,7 +91,6 @@ impl PyVulkanTensorMatcher {
     }
 }
 
-/// Template match result
 #[pyclass(name = "TemplateMatch")]
 #[derive(Clone)]
 pub struct PyTemplateMatch {
@@ -136,7 +119,6 @@ impl PyTemplateMatch {
     }
 }
 
-/// Python module for vulkan_tensor_matching
 #[pymodule]
 fn vulkan_tensor_matching(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("VERSION", VERSION)?;

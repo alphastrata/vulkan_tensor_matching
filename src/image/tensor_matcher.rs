@@ -1,8 +1,8 @@
-// src/image/tensor_matcher.rs
 
-/// Multi-angle Template Matching Implementation
-/// Computes normalised cross-correlation at multiple rotation angles
-/// and returns the maximum correlation with corresponding rotation.
+
+
+
+
 use crate::error::Result;
 use crate::image::loader::ImageData;
 use crate::vulkan::{device::VulkanDevice, instance::VulkanInstance, memory::VulkanMemoryManager};
@@ -11,7 +11,7 @@ use log::{debug, info};
 use std::ffi::CString;
 use std::sync::Arc;
 
-// Shader
+
 static MULTI_ANGLE_NCC_SPV: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/tensorial_correlation.spv"));
 
@@ -64,7 +64,7 @@ impl VulkanTensorMatcher {
                 .create_command_pool(&pool_create_info, None)?
         };
 
-        // Descriptor set layout: Target, Template, Results, Params
+        
         let descriptor_set_layout = Self::create_descriptor_set_layout(
             &vulkan_device.device,
             &[
@@ -128,7 +128,7 @@ impl VulkanTensorMatcher {
         let out_w = target_image.width - template_image.width + 1;
         let out_h = target_image.height - template_image.height + 1;
 
-        // Create buffers
+        
         let target_buffer =
             self.memory_manager
                 .create_image_buffer(target_image.width, target_image.height, 1)?;
@@ -143,15 +143,15 @@ impl VulkanTensorMatcher {
         self.memory_manager
             .upload_data(&template_buffer, &template_image.data)?;
 
-        // Result buffer: vec4 per position (corr, angle, _, _)
+        
         let result_buffer = self.memory_manager.create_tensor_buffer(
-            (out_w * out_h * 16) as u64, // 4 floats * 4 bytes
+            (out_w * out_h * 16) as u64, 
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
             gpu_allocator::MemoryLocation::GpuToCpu,
             "Result Buffer",
         )?;
 
-        // Parameters
+        
         #[repr(C)]
         #[derive(Clone, Copy)]
         struct Params {
@@ -180,12 +180,12 @@ impl VulkanTensorMatcher {
                 template_height: template_image.height,
                 correlation_threshold,
                 max_results: max_matches as u32,
-                num_angles: 36, // 10 degree steps
+                num_angles: 36, 
                 padding: 0,
             }],
         )?;
 
-        // Bind descriptors
+        
         let target_info = [vk::DescriptorBufferInfo::default()
             .buffer(target_buffer.buffer)
             .offset(0)
@@ -231,7 +231,7 @@ impl VulkanTensorMatcher {
                 .update_descriptor_sets(&writes, &[]);
         }
 
-        // Dispatch
+        
         self.dispatch(
             self.pipeline,
             self.pipeline_layout,
@@ -240,15 +240,15 @@ impl VulkanTensorMatcher {
             out_h.div_ceil(16),
         )?;
 
-        // Read results
+        
         let mut result_data = vec![0.0f32; (out_w * out_h * 4) as usize];
         self.memory_manager
             .device_to_host(&result_buffer, &mut result_data)?;
 
-        // Find peaks
+        
         let matches = self.find_peaks(&result_data, out_w, out_h, template_image, max_matches)?;
 
-        // Cleanup
+        
         self.memory_manager.destroy_buffer(target_buffer)?;
         self.memory_manager.destroy_buffer(template_buffer)?;
         self.memory_manager.destroy_buffer(result_buffer)?;

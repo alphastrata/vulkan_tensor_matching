@@ -6,12 +6,11 @@ For each image:
 1. Find distinctive location (highest variance 64x64 patch)
 2. Extract template
 3. Run OpenCV NCC
-4. Run Rust Vulkan TTM via subprocess
+4. Run Rust Vulkan TTM via Python bindings
 5. Generate annotated comparison images
 6. Generate HTML proof document with visual table
 """
 
-import subprocess
 import sys
 from pathlib import Path
 
@@ -52,22 +51,37 @@ def find_best_location(img_np: np.ndarray) -> tuple[int, int, float]:
 
 
 def run_rust_matcher(img_path: str, tmpl_x: int, tmpl_y: int) -> dict | None:
-    """Run Rust Vulkan TTM and parse results."""
-    cmd = [
-        "cargo", "run", "--release", "--example", "single_match", "--",
-        img_path, str(tmpl_x), str(tmpl_y)
-    ]
+    """Run Rust Vulkan TTM via Python bindings."""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        if result.returncode == 0:
-            parts = result.stdout.strip().split(",")
-            if len(parts) >= 4:
-                return {
-                    "x": int(parts[0]),
-                    "y": int(parts[1]),
-                    "correlation": float(parts[2]),
-                    "duration_ms": float(parts[3])
-                }
+        from vulkan_tensor_matching import ImageData, VulkanTensorMatcher
+        
+        # Load image
+        img = ImageData.from_file(img_path)
+        
+        # Extract template from ground truth location
+        import numpy as np
+        img_array = np.array(img.data, dtype=np.float32).reshape(img.height, img.width)
+        template_array = img_array[tmpl_y:tmpl_y+TEMPLATE_SIZE, tmpl_x:tmpl_x+TEMPLATE_SIZE]
+        
+        # Create template ImageData
+        template = ImageData(
+            data=template_array.flatten().tolist(),
+            width=TEMPLATE_SIZE,
+            height=TEMPLATE_SIZE
+        )
+        
+        # Match
+        matcher = VulkanTensorMatcher()
+        matches = matcher.match_template(img, template, 0.5, 1)
+        
+        if matches:
+            m = matches[0]
+            return {
+                "x": m.x,
+                "y": m.y,
+                "correlation": m.correlation,
+                "duration_ms": 0.0
+            }
     except Exception as e:
         print(f"  Rust matcher error: {e}", file=sys.stderr)
     return None

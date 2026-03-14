@@ -1,7 +1,4 @@
-//! Vulkan Tensor Matching Library
-//!
-//! Implements high-performance template matching using Vulkan compute shaders
-//! for GPU-accelerated image processing.
+//! GPU-accelerated template matching using Vulkan compute shaders.
 
 pub mod error;
 pub mod image;

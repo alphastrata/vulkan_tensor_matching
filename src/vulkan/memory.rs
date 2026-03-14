@@ -7,7 +7,7 @@ use gpu_allocator::{AllocationSizes, MemoryLocation};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-/// Key for identifying buffer pools by size and usage
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct BufferPoolKey {
     size: u64,
@@ -26,7 +26,7 @@ pub struct VulkanBuffer {
 pub struct VulkanMemoryManager {
     device: Device,
     allocator: Arc<Mutex<Allocator>>,
-    /// Pool of reusable buffers keyed by size, usage, and memory location
+    
     buffer_pool: Arc<Mutex<HashMap<BufferPoolKey, Vec<VulkanBuffer>>>>,
 }
 
@@ -66,7 +66,7 @@ impl VulkanMemoryManager {
         })
     }
 
-    /// Get a buffer from the pool or create a new one if none available
+    
     pub fn get_or_create_buffer(
         &self,
         size: u64,
@@ -80,7 +80,7 @@ impl VulkanMemoryManager {
             memory_location,
         };
 
-        // Try to get a buffer from the pool
+        
         {
             let mut pool = self.buffer_pool.lock().unwrap();
             if let Some(buffers) = pool.get_mut(&key)
@@ -90,19 +90,19 @@ impl VulkanMemoryManager {
             }
         }
 
-        // No buffer available in pool, create a new one
+        
         self.create_tensor_buffer(size, usage, memory_location, name)
     }
 
-    /// Return a buffer to the pool for reuse
+    
     pub fn return_buffer_to_pool(&self, buffer: VulkanBuffer) -> Result<()> {
         let key = BufferPoolKey {
             size: buffer.size,
             usage: buffer.usage,
             memory_location: match buffer.allocation.as_ref() {
                 Some(_allocation) => {
-                    // This is a simplification - in reality we'd need to track this separately
-                    MemoryLocation::GpuOnly // Default assumption
+                    
+                    MemoryLocation::GpuOnly 
                 }
                 None => MemoryLocation::Unknown,
             },
@@ -114,7 +114,7 @@ impl VulkanMemoryManager {
         Ok(())
     }
 
-    /// Clear all buffers from the pool (destroys them)
+    
     pub fn clear_buffer_pool(&self) -> Result<()> {
         let mut pool = self.buffer_pool.lock().unwrap();
         for (_, buffers) in pool.drain() {
@@ -125,7 +125,7 @@ impl VulkanMemoryManager {
         Ok(())
     }
 
-    /// Get statistics about buffer pool usage
+    
     pub fn get_pool_statistics(&self) -> (usize, usize) {
         let pool = self.buffer_pool.lock().unwrap();
         let total_buffers: usize = pool.values().map(|v| v.len()).sum();
@@ -133,7 +133,7 @@ impl VulkanMemoryManager {
         (total_buffers, pool_types)
     }
 
-    /// Create a buffer optimised for tensor operations
+    
     pub fn create_tensor_buffer(
         &self,
         size: u64,
@@ -174,9 +174,9 @@ impl VulkanMemoryManager {
         })
     }
 
-    /// Create a buffer specifically for 2D tensor fields
+    
     pub fn create_tensor_field_buffer(&self, width: u32, height: u32) -> Result<VulkanBuffer> {
-        // Each tensor has 8 f32 components (5 real + 3 padding for alignment)
+        
         let tensor_size = std::mem::size_of::<f32>() * 8;
         let total_size = (width * height) as u64 * tensor_size as u64;
 
@@ -188,7 +188,7 @@ impl VulkanMemoryManager {
         )
     }
 
-    /// Create a buffer for image data with optimal memory layout
+    
     pub fn create_image_buffer(
         &self,
         width: u32,
@@ -205,7 +205,7 @@ impl VulkanMemoryManager {
         )
     }
 
-    /// Create a staging buffer for CPU-GPU data transfer
+    
     pub fn create_staging_buffer(&self, size: u64) -> Result<VulkanBuffer> {
         self.create_tensor_buffer(
             size,
@@ -215,7 +215,7 @@ impl VulkanMemoryManager {
         )
     }
 
-    /// Upload data to GPU buffer
+    
     pub fn upload_data<T: Copy>(&self, buffer: &VulkanBuffer, data: &[T]) -> Result<()> {
         if let Some(allocation) = &buffer.allocation {
             if allocation.mapped_ptr().is_some() {
@@ -232,7 +232,7 @@ impl VulkanMemoryManager {
         Ok(())
     }
 
-    /// Copy data from GPU buffer to host memory
+    
     pub fn device_to_host<T: Copy>(&self, buffer: &VulkanBuffer, data: &mut [T]) -> Result<()> {
         if let Some(allocation) = &buffer.allocation {
             if allocation.mapped_ptr().is_some() {
@@ -259,21 +259,21 @@ impl VulkanMemoryManager {
         Ok(())
     }
 
-    /// Destroy buffer or return it to pool for reuse
+    
     pub fn destroy_or_pool_buffer(&self, buffer: VulkanBuffer) -> Result<()> {
-        // For now, we'll just destroy the buffer
-        // In a more sophisticated implementation, we might return it to a pool
+        
+        
         self.destroy_buffer(buffer)
     }
 }
 
 impl Drop for VulkanMemoryManager {
     fn drop(&mut self) {
-        // Clear buffer pool on shutdown
+        
         if let Err(e) = self.clear_buffer_pool() {
             eprintln!("Warning: Failed to clear buffer pool: {:?}", e);
         }
-        // The gpu_allocator handles cleanup automatically when dropped
-        // We just need to make sure all buffers are destroyed before this point
+        
+        
     }
 }

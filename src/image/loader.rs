@@ -18,7 +18,7 @@ pub struct ImageData {
 }
 
 impl ImageData {
-    /// Create new ImageData from raw data
+    
     pub fn new(data: Vec<f32>, width: u32, height: u32, channels: u32) -> Self {
         Self {
             data,
@@ -28,13 +28,13 @@ impl ImageData {
         }
     }
 
-    /// Load image from file and convert to normalised float data
+    
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let img = image::open(path)?;
         Self::from_dynamic_image(img)
     }
 
-    /// Convert DynamicImage to normalised float data
+    
     pub fn from_dynamic_image(img: DynamicImage) -> Result<Self> {
         let (width, height) = img.dimensions();
 
@@ -43,7 +43,7 @@ impl ImageData {
                 let data = img
                     .pixels()
                     .flat_map(|pixel| {
-                        // Convert to grayscale and normalise to [0,1]
+                        
                         let gray = (0.299 * pixel[0] as f32
                             + 0.587 * pixel[1] as f32
                             + 0.114 * pixel[2] as f32)
@@ -63,7 +63,7 @@ impl ImageData {
                 let data = img
                     .pixels()
                     .flat_map(|pixel| {
-                        // Convert RGBA to grayscale, ignore alpha
+                        
                         let gray = (0.299 * pixel[0] as f32
                             + 0.587 * pixel[1] as f32
                             + 0.114 * pixel[2] as f32)
@@ -117,7 +117,7 @@ impl ImageData {
         }
     }
 
-    /// Extract a region from the image
+    
     pub fn extract_region(&self, x: u32, y: u32, width: u32, height: u32) -> Result<Self> {
         if x + width > self.width || y + height > self.height {
             return Err(crate::error::TensorMatchingError::Other(
@@ -141,7 +141,7 @@ impl ImageData {
         })
     }
 
-    /// Create a synthetic test template (useful for benchmarking)
+    
     pub fn create_test_template(size: u32, shape: TestShape) -> Self {
         let mut data = vec![0.0; (size * size) as usize];
         let centre = size as f32 / 2.0;
