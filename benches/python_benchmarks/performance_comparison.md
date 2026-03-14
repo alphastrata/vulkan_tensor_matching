@@ -20,7 +20,7 @@
   - CPU: AMD Ryzen 9 5950X 16-Core Processor
   - Memory: 31Gi
 
-## Visualisation
+## Visualization
 
 Performance comparison plot:
 

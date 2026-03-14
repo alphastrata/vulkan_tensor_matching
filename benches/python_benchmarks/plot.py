@@ -29,14 +29,14 @@ def create_performance_plot(df: pd.DataFrame, output_file: str) -> None:
     plt.style.use("default")
     sns.set_palette("husl")
 
-    fig, axe = plt.subplots(figsize=(10, 6))
-    sns.boxplot(data=df, x="group", y="time_ms", axe=axe)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.boxplot(data=df, x="group", y="time_ms", ax=ax)
 
-    axe.set_xlabel("Implementation")
-    axe.set_ylabel("Time (ms)")
-    axe.set_title("Template Matching Performance Comparison")
+    ax.set_xlabel("Implementation")
+    ax.set_ylabel("Time (ms)")
+    ax.set_title("Template Matching Performance Comparison")
     plt.xticks(rotation=45, ha="right")
-    axe.grid(True, alpha=0.3)
+    ax.grid(True, alpha=0.3)
     plt.tight_layout()
 
     plt.savefig(output_file, format="svg", bbox_inches="tight")
