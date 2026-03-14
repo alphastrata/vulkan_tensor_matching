@@ -9,10 +9,6 @@ description = "High-performance rotation-invariant template matching library usi
 name = "vulkan_tensor_matching"
 crate-type = ["cdylib", "rlib"]
 
-[[example]]
-name = "lenna_vulkan_matching"
-path = "examples/lenna_vulkan_matching.rs"
-
 [[bench]]
 name = "cpu_template_matching"
 harness = false
