@@ -1,4 +1,0 @@
-{"image_path": "extensive/source_images/source_4.png", "template_path": "templates/gt_000.png", "expected_matches": [{"x": 114, "y": 178, "w": 64, "h": 64, "angle": 0.0}]}
-{"image_path": "extensive/source_images/source_0.png", "template_path": "templates/gt_001.png", "expected_matches": [{"x": 498, "y": 306, "w": 64, "h": 64, "angle": 0.0}]}
-{"image_path": "extensive/source_images/source_5.png", "template_path": "templates/gt_003.png", "expected_matches": [{"x": 562, "y": 178, "w": 64, "h": 64, "angle": 0.0}]}
-{"image_path": "extensive/source_images/source_1.png", "template_path": "templates/gt_004.png", "expected_matches": [{"x": 306, "y": 242, "w": 64, "h": 64, "angle": 0.0}]}
