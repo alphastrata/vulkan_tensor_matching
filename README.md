@@ -1,9 +1,9 @@
 # Vulkan Tensorial Template Matching
 
 An 'allegedly' High-performance rotation-invariant template matching library using Vulkan compute shaders and tensor mathematics accelerated image processing (template matching specifically).
-Based on this [Tensor-based template matching paper](https://arxiv.org/abs/2408.02398), by Antonio Martinez-Sanchez.
+Based on this [Tensor-based template matching paper](https://arxiv.org/abs/2408.02398v1 [cs.CV]), by Antonio Martinez-Sanchez.
 
-I have done my very best to faithfully interpret the parper and its algorithms here using Vulkan (Not an API I am super familiar with, so feedback is most welcome).
+I have done my very best to faithfully interpret the paper and its algorithms here using Vulkan.
 
 I say 'allegedly' above, but in truth the implementation is _quite_ fast, especially when compared to the cpu implementation from `imageproc` (Which is a great create, I'm not throwing any shade).
 
@@ -14,13 +14,13 @@ I say 'allegedly' above, but in truth the implementation is _quite_ fast, especi
 use vulkan_tensor_matching::ImageData;
 
 // Load target image from disk (e.g., lenna.png)
-let target = ImageData::from_file("test_assets/lenna.png")?;
+let target = ImageData::from_file("test_data/lenna.png")?;
 
-// Load template from disk (e.g., test1.png or test2.png)
-let template = ImageData::from_file("test_assets/templates/test1.png")?;
+// Load template from disk (e.g., test1.png)
+let template = ImageData::from_file("test_data/templates/test1.png")?;
 
 // Or extract template from region of interest
-let template = ImageData::extract_region(&target, 100, 100, 50, 50)?;
+let template = target.extract_region(100, 100, 50, 50)?;
 ```
 
 ### 2. Performing Template Matching
@@ -28,7 +28,7 @@ let template = ImageData::extract_region(&target, 100, 100, 50, 50)?;
 use vulkan_tensor_matching::VulkanTensorMatcher;
 
 // Initialise matcher (Vulkan GPU acceleration)
-let matcher = VulkanTensorMatcher::new(); // Non-async API
+let matcher = VulkanTensorMatcher::new()?;
 
 // Find matches with correlation threshold
 let matches = matcher.match_template(
@@ -41,34 +41,27 @@ let matches = matcher.match_template(
 
 ### 3. Understanding Matches
 Each match contains:
-- **Position (x,y)**: Location coordinates in the target image
-- **Correlation**: Similarity score (0.0 = no match, 1.0 = perfect match)
-- **Rotation**: Template orientation in degrees (-180° to +180°)
+- **Position (x,y)**: Location coordinates in the target image (centre of the match)
+- **Correlation**: Similarity score (0.0 to 1.0)
+- **Rotation**: Template orientation in radians
 - **Confidence**: Algorithm's certainty in the detection
 
 ```rust
-for (i, match) in matches.iter().enumerate() {
+for (i, m) in matches.iter().enumerate() {
     println!("Match {}: ({}, {}) correlation={:.3} rotation={:.1}°",
-             i + 1, match.x, match.y, match.correlation,
-             match.rotation_angle.to_degrees());
+             i + 1, m.x, m.y, m.correlation,
+             m.rotation_angle.to_degrees());
 }
 ```
 
-### 4. Interpreting Results
-Correlation Score Guide:
-- **0.95-1.00**: Excellent match
-- **0.85-0.95**: Good match
-- **0.70-0.85**: Fair match
-- **0.50-0.70**: Poor match
-- **Below 0.50**: Likely not a match
-
 ## Installation
+NOTE: You need `vulkan-sdk` and `shaderc` installed on your system.
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vulkan_tensor_matching = { git = "https://github.com/alphastrata/vulkan_tensor_matching?tab=readme-ov-file" }
+vulkan_tensor_matching = { git = "https://github.com/alphastrata/vulkan_tensor_matching" }
 ```
 
 ### Async Runtime Configuration
@@ -86,20 +79,19 @@ vulkan_tensor_matching = { version = "0.1", features = ["smol"] }
 
 Run any example with:
 ```bash
-cargo run --example <example_name>
+cargo run --release --example lenna_vulkan_matching
 ```
 
 ### Benchmark Results
 
 | Implementation | Average Time | Notes |
 |---------------|-------------|-------|
-| CPU (Rust) | ~725 ms | imageproc crate |
-| GPU (Rust/Vulkan) | ~2.12 ms | Custom Vulkan implementation |
-| CPU (Python/OpenCV) | ~4.87 ms | cv2.matchTemplate |
 
-### Performance Comparison Scripts
+#TODO
 
-OpenCV benchmark scripts are available in the `benches/python_benchmarks` directory for comparison purposes. These scripts can be run using `uv` for dependency management:
+### Proof Visualisation
+
+A Python script is provided to generate a comprehensive proof document with visual annotations:
 
 ```bash
 cd benches/python_benchmarks
@@ -109,7 +101,7 @@ uv pip install opencv-python numpy pandas seaborn
 python bench.py
 ```
 
-The scripts generate performance comparison plots in SVG format.
+Results will be saved to `test_data/proof.md`.
 
 ## License
 MIT

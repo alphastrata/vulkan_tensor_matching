@@ -15,3 +15,4 @@ benches/python_benchmarks/**/*.svg
 benches/python_benchmarks/**/*.png
 benches/python_benchmarks/**/*.csv
 *.egg-info*
+test_data/proof_output
