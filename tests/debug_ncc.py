@@ -22,7 +22,7 @@ def debug_ncc():
     th, tw = tmpl.shape
     ih, iw = img.shape
 
-    # Ground truth center approx (45, 95)
+    # Ground truth centre approx (45, 95)
     # Top-left should be approx (13, 63)
     gt_x, gt_y = 13, 63
 
@@ -67,7 +67,7 @@ def debug_ncc():
 
             # Manual calculation matching shader logic
             # Shader: sum(tmpl_norm_component * (pixel - patch_mean)) * (1 / (patch_dev * sqrt(count)))
-            # Here tmpl_norm is already normalized.
+            # Here tmpl_norm is already normalised.
             # Let's match shader exactly:
             # res += tmpl_component * (pixel - patch_mean)
             # final = res * norm_factor

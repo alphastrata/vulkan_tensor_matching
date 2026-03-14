@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from rust_python_lib import ImageData, VulkanTensorMatcher
+from vulkan_tensor_matching import ImageData, VulkanTensorMatcher
 
 TEST_ASSETS_DIR = Path(__file__).parent.parent / "test_data"
 
@@ -68,8 +68,8 @@ def rotate_point(x: float, y: float, angle_deg: float, cx: float, cy: float) -> 
 def plant_rotated_template(
     image: np.ndarray,
     template: np.ndarray,
-    center_x: int,
-    center_y: int,
+    centre_x: int,
+    centre_y: int,
     angle_deg: float,
 ) -> None:
     """Plant a template in an image at a specific rotation angle."""
@@ -86,19 +86,19 @@ def plant_rotated_template(
             rx, ry = rotate_point(tx, ty, angle_deg, cx, cy)
 
             # Map to image coordinates
-            ix = center_x + rx - cx
-            iy = center_y + ry - cy
+            ix = centre_x + rx - cx
+            it = centre_y + ry - cy
 
             # Check bounds
-            if ix < 0 or ix >= image.shape[1] or iy < 0 or iy >= image.shape[0]:
+            if ix < 0 or ix >= image.shape[1] or it < 0 or it >= image.shape[0]:
                 continue
 
             # Simple nearest-neighbor planting
             ix_u = int(round(ix))
-            iy_u = int(round(iy))
+            it_u = int(round(it))
 
-            if 0 <= ix_u < image.shape[1] and 0 <= iy_u < image.shape[0]:
-                image[iy_u, ix_u] = val
+            if 0 <= ix_u < image.shape[1] and 0 <= it_u < image.shape[0]:
+                image[it_u, ix_u] = val
 
 
 @pytest.fixture
@@ -142,7 +142,7 @@ class TestTensorRotationInvariance:
         best = matches[0]
         assert best.correlation > 0.5, f"Correlation too low at 0°: {best.correlation}"
 
-        # Position should be near center
+        # Position should be near centre
         assert abs(best.x - 50) <= 10, f"Position x={best.x} too far from 50"
         assert abs(best.y - 50) <= 10, f"Position y={best.y} too far from 50"
 
@@ -332,7 +332,6 @@ class TestTensorRotationInvariance:
     def test_tensor_rotation_angle_wrapping(self, matcher):
         """Test angle wrapping near boundaries."""
         boundary_angles = [(355.0, 355.0), (5.0, 5.0), (175.0, 175.0), (185.0, 185.0)]
-        angle_tolerance = 20.0  # degrees
         image_w, image_h = 100, 100
         template_size = 20
 

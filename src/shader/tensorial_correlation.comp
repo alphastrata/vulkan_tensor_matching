@@ -1,6 +1,6 @@
 #version 450
 
-// Normalized Cross-Correlation (no rotation)
+// Normalised Cross-Correlation (no rotation)
 // Simple, correct NCC implementation.
 
 layout(set = 0, binding = 0) restrict readonly buffer TargetImage {
@@ -71,7 +71,7 @@ void main() {
     }
     float std_t = sqrt(max(sum_sq_t / float(count), 1e-6));
 
-    // Compute NCC: sum of (normalized_target * normalized_template)
+    // Compute NCC: sum of (normalised_target * normalised_template)
     float ncc = 0.0;
     float norm_scale = 1.0 / (std_f * std_t * float(count));
     

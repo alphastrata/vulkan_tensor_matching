@@ -13,11 +13,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "test_assets"))
 from vulkan_tensor_matching import ImageData, VulkanTensorMatcher
 
 
-def draw_match(img, x, y, w, h, angle, color, label, is_center=True):
+def draw_match(img, x, y, w, h, angle, color, label, is_centre=True):
     """Draw a match rectangle and label."""
     draw = ImageDraw.Draw(img, "RGBA")
 
-    if is_center:
+    if is_centre:
         cx, cy = x, y
         tl_x, tl_y = x - w / 2, y - h / 2
     else:
@@ -38,7 +38,7 @@ def main():
     OUTPUT_DIR = Path("test_data/validation_output")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Initialize matcher
+    # Initialise matcher
     print("\nInitializing Vulkan Tensor Matcher...")
     matcher = VulkanTensorMatcher()
 
@@ -85,7 +85,7 @@ def main():
             f"  Match {i + 1}: ({m.x}, {m.y}) corr={m.correlation:.3f} rot={m.rotation_angle:.1f}rad"
         )
 
-    # Expected center
+    # Expected centre
     expected_cx = extract_x + extract_size // 2
     expected_cy = extract_y + extract_size // 2
 
@@ -93,7 +93,7 @@ def main():
         best = matches[0]
         dist = ((best.x - expected_cx) ** 2 + (best.y - expected_cy) ** 2) ** 0.5
         print(
-            f"\nBest match distance to expected center ({expected_cx}, {expected_cy}): {dist:.1f}px"
+            f"\nBest match distance to expected centre ({expected_cx}, {expected_cy}): {dist:.1f}px"
         )
         print(f"Correlation: {best.correlation:.3f}")
 
@@ -102,7 +102,7 @@ def main():
         else:
             print(f"⚠ IDENTITY TEST: Close but not exact (dist={dist:.1f}px)")
 
-    # Visualize
+    # Visualise
     lenna_rgb = Image.open(lenna_path).convert("RGB")
 
     # Draw expected location (purple)
@@ -115,7 +115,7 @@ def main():
         0,
         (128, 0, 128),
         "Expected",
-        is_center=True,
+        is_centre=True,
     )
 
     # Draw detected matches (green)
@@ -130,11 +130,11 @@ def main():
             m.rotation_angle,
             color,
             f"Detected #{i + 1}",
-            is_center=True,
+            is_centre=True,
         )
 
     lenna_rgb.save(OUTPUT_DIR / "identity_test.png")
-    print(f"Saved visualization to {OUTPUT_DIR / 'identity_test.png'}")
+    print(f"Saved visualisation to {OUTPUT_DIR / 'identity_test.png'}")
 
     # Test 2: Rotation Invariance
     print("\n" + "=" * 60)
@@ -179,7 +179,7 @@ def main():
         max_corr = max(correlations)
         variation = (max_corr - min_corr) / mean_corr * 100
 
-        print(f"\nRotation Stability:")
+        print("\nRotation Stability:")
         print(f"  Mean: {mean_corr:.3f}, Min: {min_corr:.3f}, Max: {max_corr:.3f}")
         print(f"  Variation: {variation:.1f}%")
 
@@ -209,7 +209,7 @@ def main():
                 f"  Match {i + 1}: ({m.x}, {m.y}) corr={m.correlation:.3f} rot={m.rotation_angle:.1f}rad"
             )
 
-        # Visualize
+        # Visualise
         lenna_rgb2 = Image.open(lenna_path).convert("RGB")
         for i, m in enumerate(matches[:5]):
             color = (0, 255, 0) if m.correlation > 0.5 else (255, 255, 0)
@@ -222,11 +222,11 @@ def main():
                 m.rotation_angle,
                 color,
                 f"#{i + 1}: {m.correlation:.2f}",
-                is_center=True,
+                is_centre=True,
             )
 
         lenna_rgb2.save(OUTPUT_DIR / "standard_matching.png")
-        print(f"Saved visualization to {OUTPUT_DIR / 'standard_matching.png'}")
+        print(f"Saved visualisation to {OUTPUT_DIR / 'standard_matching.png'}")
     else:
         print(f"Template not found: {template_path}")
 
@@ -236,8 +236,8 @@ def main():
     print(f"\nResults saved to: {OUTPUT_DIR.absolute()}")
     print("\nKey Improvements in Corrected Implementation:")
     print("  1. Proper rotation-invariant NCC computation")
-    print("  2. Correct coordinate rotation around template center")
-    print("  3. Proper normalization for both template and target")
+    print("  2. Correct coordinate rotation around template centre")
+    print("  3. Proper normalisation for both template and target")
     print("  4. Max projection over 360 angles for best match")
     print("  5. Boundary margin to avoid edge artifacts")
 

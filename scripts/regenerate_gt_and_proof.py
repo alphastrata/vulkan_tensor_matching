@@ -96,22 +96,22 @@ def opencv_match(source_gray, tmpl_gray):
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
     th, tw = tmpl_gray.shape
-    center_x = max_loc[0] + tw / 2
-    center_y = max_loc[1] + th / 2
+    centre_x = max_loc[0] + tw / 2
+    centre_y = max_loc[1] + th / 2
 
     return {
-        "x": center_x,
-        "y": center_y,
+        "x": centre_x,
+        "y": centre_y,
         "corr": float(max_val),
         "top_left": (max_loc[0], max_loc[1]),
     }
 
 
-def draw_match(img, x, y, w, h, color, label, is_center=True):
+def draw_match(img, x, y, w, h, color, label, is_centre=True):
     """Draw match annotation."""
     draw = ImageDraw.Draw(img, "RGBA")
 
-    if is_center:
+    if is_centre:
         tl_x, tl_y = x - w / 2, y - h / 2
     else:
         tl_x, tl_y = x, y
@@ -119,7 +119,7 @@ def draw_match(img, x, y, w, h, color, label, is_center=True):
     # Box
     draw.rectangle([tl_x, tl_y, tl_x + w, tl_y + h], outline=color, width=3)
 
-    # Cross at center
+    # Cross at centre
     cx, cy = tl_x + w / 2, tl_y + h / 2
     draw.line([(cx - 10, cy), (cx + 10, cy)], fill=color, width=2)
     draw.line([(cx, cy - 10), (cx, cy + 10)], fill=color, width=2)
@@ -148,11 +148,11 @@ def process_image(img_path, case_idx, matcher):
         return None
 
     tmpl_x, tmpl_y = loc
-    tmpl_center_x = tmpl_x + TEMPLATE_SIZE // 2
-    tmpl_center_y = tmpl_y + TEMPLATE_SIZE // 2
+    tmpl_centre_x = tmpl_x + TEMPLATE_SIZE // 2
+    tmpl_centre_y = tmpl_y + TEMPLATE_SIZE // 2
 
     print(
-        f"  Template location: top-left=({tmpl_x}, {tmpl_y}), center=({tmpl_center_x}, {tmpl_center_y})"
+        f"  Template location: top-left=({tmpl_x}, {tmpl_y}), centre=({tmpl_centre_x}, {tmpl_centre_y})"
     )
 
     # Extract and save template
@@ -193,31 +193,31 @@ def process_image(img_path, case_idx, matcher):
     # Compute distances
     if vulkan_result:
         vulkan_dist = (
-            (vulkan_result["x"] - tmpl_center_x) ** 2
-            + (vulkan_result["y"] - tmpl_center_y) ** 2
+            (vulkan_result["x"] - tmpl_centre_x) ** 2
+            + (vulkan_result["y"] - tmpl_centre_y) ** 2
         ) ** 0.5
         print(f"  Vulkan distance to GT: {vulkan_dist:.1f}px")
 
     if opencv_result:
         opencv_dist = (
-            (opencv_result["x"] - tmpl_center_x) ** 2
-            + (opencv_result["y"] - tmpl_center_y) ** 2
+            (opencv_result["x"] - tmpl_centre_x) ** 2
+            + (opencv_result["y"] - tmpl_centre_y) ** 2
         ) ** 0.5
         print(f"  OpenCV distance to GT: {opencv_dist:.1f}px")
 
-    # Generate visualization
+    # Generate visualisation
     rgb_img = Image.open(img_path).convert("RGB")
 
     # Ground truth (purple)
     draw_match(
         rgb_img,
-        tmpl_center_x,
-        tmpl_center_y,
+        tmpl_centre_x,
+        tmpl_centre_y,
         TEMPLATE_SIZE,
         TEMPLATE_SIZE,
         (128, 0, 128),
         "GT",
-        is_center=True,
+        is_centre=True,
     )
 
     # Vulkan match (green)
@@ -231,7 +231,7 @@ def process_image(img_path, case_idx, matcher):
             TEMPLATE_SIZE,
             color,
             f"Vulkan: {vulkan_result['corr']:.2f}",
-            is_center=True,
+            is_centre=True,
         )
 
     # OpenCV match (orange)
@@ -244,14 +244,14 @@ def process_image(img_path, case_idx, matcher):
             TEMPLATE_SIZE,
             (255, 165, 0),
             f"OpenCV: {opencv_result['corr']:.2f}",
-            is_center=True,
+            is_centre=True,
         )
 
-    # Save visualization
+    # Save visualisation
     viz_path = OUTPUT_DIR / f"case_{case_idx:03d}_proof.png"
     rgb_img.save(viz_path)
 
-    # Save template visualization
+    # Save template visualisation
     tmpl_viz = tmpl_pil.convert("RGB")
     tmpl_viz_path = OUTPUT_DIR / f"case_{case_idx:03d}_template.png"
     tmpl_viz.save(tmpl_viz_path)
@@ -273,7 +273,7 @@ def process_image(img_path, case_idx, matcher):
         "vulkan_distance": vulkan_dist if vulkan_result else None,
         "opencv_distance": opencv_dist if opencv_result else None,
         "vulkan_duration_ms": vulkan_duration,
-        "visualization": str(viz_path.relative_to(TEST_DATA_DIR)),
+        "visualisation": str(viz_path.relative_to(TEST_DATA_DIR)),
         "template_viz": str(tmpl_viz_path.relative_to(TEST_DATA_DIR)),
     }
 
@@ -349,7 +349,7 @@ def generate_proof_md(results):
             md.append(f"- Distance from GT: {r['opencv_distance']:.1f}px")
 
         md.append("")
-        md.append(f"![Proof]({r['visualization']})")
+        md.append(f"![Proof]({r['visualisation']})")
         md.append("")
         md.append(f"![Template]({r['template_viz']})")
         md.append("")
@@ -368,7 +368,7 @@ def main():
     print("Regenerating Ground Truth and Proof Document")
     print("=" * 60)
 
-    # Initialize matcher
+    # Initialise matcher
     print("\nInitializing Vulkan Tensor Matcher...")
     matcher = VulkanTensorMatcher()
 

@@ -1,7 +1,7 @@
 // src/image/tensor_matcher.rs
 
 /// Multi-angle Template Matching Implementation
-/// Computes normalized cross-correlation at multiple rotation angles
+/// Computes normalised cross-correlation at multiple rotation angles
 /// and returns the maximum correlation with corresponding rotation.
 use crate::error::Result;
 use crate::image::loader::ImageData;

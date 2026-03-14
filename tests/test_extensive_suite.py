@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from PIL import Image
-from rust_python_lib import (
+from vulkan_tensor_matching import (
     ImageData,
     VulkanNCCMatcher,
     VulkanTensorMatcher,
@@ -75,7 +75,7 @@ class TestExtensiveVulkan:
         assert len(matches) > 0, (
             "No matches found for synthetic rotation even with 0.0 threshold"
         )
-        # Center in img was (100, 100)
+        # Centre in img was (100, 100)
         m = matches[0]
         dx = abs(m.x - 100)
         dy = abs(m.y - 100)

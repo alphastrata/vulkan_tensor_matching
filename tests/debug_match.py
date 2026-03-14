@@ -52,7 +52,7 @@ def main():
 
     template = ImageData(template_data, tmpl_size, tmpl_size, 1)
 
-    print(f"\nMatching template back to image...")
+    print("\nMatching template back to image...")
     matcher = VulkanTensorMatcher()
     start = time.time()
     matches = matcher.match_template(lenna, template, 0.3, 5)
@@ -91,10 +91,10 @@ def main():
 
     viz_path = Path("test_data/debug_match.png")
     lenna_pil.save(viz_path)
-    print(f"\nSaved visualization to {viz_path}")
+    print(f"\nSaved visualisation to {viz_path}")
 
     # NumPy NCC reference
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("Reference: NumPy NCC")
     print("=" * 60)
 
@@ -131,7 +131,7 @@ def main():
         dy = best_cy - expected_cy
         dist = math.sqrt(dx * dx + dy * dy)
         print(
-            f"Best match: ({best_loc[0]}, {best_loc[1]}) center=({best_cx}, {best_cy}) corr={best_corr:.3f}"
+            f"Best match: ({best_loc[0]}, {best_loc[1]}) centre=({best_cx}, {best_cy}) corr={best_corr:.3f}"
         )
         print(f"Distance to expected: {dist:.1f}px")
         if dist < 15:

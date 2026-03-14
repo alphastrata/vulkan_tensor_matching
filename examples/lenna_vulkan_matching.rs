@@ -3,7 +3,7 @@ use vulkan_tensor_matching::image::{annotate_image_with_tensor_matches, image_da
 use vulkan_tensor_matching::{ImageData, VulkanTensorMatcher};
 
 fn main() {
-    // Initialize logging
+    // Initialise logging
     env_logger::init();
 
     let target_path = "test_data/lenna.png";
@@ -55,14 +55,14 @@ fn main() {
     if !matches.is_empty() {
         let best = &matches[0];
         // Ground truth top-left for test1.png in lenna.png is approx (13, 63)
-        // Template size is 64x64, so center is at (13+32, 63+32) = (45, 95)
-        // Our detector returns CENTER coordinates, so we compare to (45, 95)
-        let gt_center_x = 13 + 64 / 2; // 45
-        let gt_center_y = 63 + 64 / 2; // 95
-        let dist = (((best.x as i32 - gt_center_x).pow(2) + (best.y as i32 - gt_center_y).pow(2))
+        // Template size is 64x64, so centre is at (13+32, 63+32) = (45, 95)
+        // Our detector returns CENTRE coordinates, so we compare to (45, 95)
+        let gt_centre_x = 13 + 64 / 2; // 45
+        let gt_centre_y = 63 + 64 / 2; // 95
+        let dist = (((best.x as i32 - gt_centre_x).pow(2) + (best.y as i32 - gt_centre_y).pow(2))
             as f32)
             .sqrt();
-        println!("\nDistance to ground truth center (45, 95): {:.1}px", dist);
+        println!("\nDistance to ground truth centre (45, 95): {:.1}px", dist);
     }
 
     // ========================================================================
@@ -113,18 +113,18 @@ fn main() {
     // Validate identity test
     if !identity_matches.is_empty() {
         let best = &identity_matches[0];
-        // The match coordinates are CENTER of template
+        // The match coordinates are CENTRE of template
         // We extracted from (extract_x, extract_y) which is TOP-LEFT
-        // So expected center is (extract_x + width/2, extract_y + height/2)
-        let expected_center_x = extract_x + extract_size / 2;
-        let expected_center_y = extract_y + extract_size / 2;
+        // So expected centre is (extract_x + width/2, extract_y + height/2)
+        let expected_centre_x = extract_x + extract_size / 2;
+        let expected_centre_y = extract_y + extract_size / 2;
 
-        let dist = (((best.x as i32 - expected_center_x as i32).pow(2)
-            + (best.y as i32 - expected_center_y as i32).pow(2)) as f32)
+        let dist = (((best.x as i32 - expected_centre_x as i32).pow(2)
+            + (best.y as i32 - expected_centre_y as i32).pow(2)) as f32)
             .sqrt();
         println!(
-            "\nIdentity Test Result: Best match at ({}, {}) - Distance to expected center ({}, {}): {:.1}px",
-            best.x, best.y, expected_center_x, expected_center_y, dist
+            "\nIdentity Test Result: Best match at ({}, {}) - Distance to expected centre ({}, {}): {:.1}px",
+            best.x, best.y, expected_centre_x, expected_centre_y, dist
         );
         println!("Correlation: {:.3} (expected > 0.95)", best.correlation);
 
@@ -168,7 +168,7 @@ fn main() {
         }
     }
 
-    // Analyze rotation stability
+    // Analyse rotation stability
     if !correlations.is_empty() {
         let mean_corr = correlations.iter().sum::<f32>() / correlations.len() as f32;
         let max_corr = correlations.iter().cloned().fold(0.0f32, f32::max);

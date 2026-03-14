@@ -55,7 +55,7 @@ void main() {
     }
 
     // Boundary margin check: ignore peaks too close to image edges
-    // This prevents false positives from normalization instability in flat regions
+    // This prevents false positives from normalisation instability in flat regions
     if (global_id.x < params.boundary_margin || 
         global_id.x >= params.width - params.boundary_margin ||
         global_id.y < params.boundary_margin || 

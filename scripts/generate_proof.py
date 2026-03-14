@@ -97,7 +97,7 @@ def main():
         img_path = TEST_DATA_DIR / "lenna.png"
 
         if img_path.exists():
-            # Ground truth center (approx 45, 95)
+            # Ground truth centre (approx 45, 95)
             gt = [{"x": 45, "y": 95}]
 
             output = OUTPUT_DIR / "lenna_matches.png"

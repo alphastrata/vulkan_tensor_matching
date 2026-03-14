@@ -6,7 +6,7 @@ Final Validation: Proves implementation correctness and identifies ground truth 
 import json
 import time
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import numpy as np
 
 from vulkan_tensor_matching import ImageData, VulkanTensorMatcher
@@ -84,10 +84,10 @@ def compute_patch_similarity(patch1, patch2):
     if std1 < 1e-6 or std2 < 1e-6:
         return 0.0
 
-    normalized1 = (arr1 - mean1) / std1
-    normalized2 = (arr2 - mean2) / std2
+    normalised1 = (arr1 - mean1) / std1
+    normalised2 = (arr2 - mean2) / std2
 
-    return float(np.corrcoef(normalized1, normalized2)[0, 1])
+    return float(np.corrcoef(normalised1, normalised2)[0, 1])
 
 
 def main():
@@ -119,7 +119,7 @@ def main():
         tmpl_path = Path("test_data") / case["template_path"]
 
         if not img_path.exists() or not tmpl_path.exists():
-            print(f"  SKIP: Files not found")
+            print("  SKIP: Files not found")
             continue
 
         # Load images
@@ -130,13 +130,13 @@ def main():
         gt = case["expected_matches"][0]
         gt_x, gt_y = gt["x"], gt["y"]
         gt_w, gt_h = gt["w"], gt["h"]
-        gt_center_x = gt_x + gt_w // 2
-        gt_center_y = gt_y + gt_h // 2
+        gt_centre_x = gt_x + gt_w // 2
+        gt_centre_y = gt_y + gt_h // 2
 
         print(f"  Image: {img.width}x{img.height}")
         print(f"  Template: {tmpl.width}x{tmpl.height}")
         print(
-            f"  Claimed GT: top-left=({gt_x}, {gt_y}), center=({gt_center_x}, {gt_center_y})"
+            f"  Claimed GT: top-left=({gt_x}, {gt_y}), centre=({gt_centre_x}, {gt_centre_y})"
         )
 
         # Run matching
@@ -153,7 +153,7 @@ def main():
             f"  Best Match: ({best.x}, {best.y}) corr={best.correlation:.3f} rot={best.rotation_angle:.1f}rad"
         )
         print(
-            f"  Distance from GT center: {((best.x - gt_center_x) ** 2 + (best.y - gt_center_y) ** 2) ** 0.5:.1f}px"
+            f"  Distance from GT centre: {((best.x - gt_centre_x) ** 2 + (best.y - gt_centre_y) ** 2) ** 0.5:.1f}px"
         )
 
         # Extract patches for comparison
@@ -168,7 +168,7 @@ def main():
         det_similarity = compute_patch_similarity(template_patch, detected_patch)
         gt_similarity = compute_patch_similarity(template_patch, gt_patch)
 
-        print(f"\n  Patch Similarity to Template:")
+        print("\n  Patch Similarity to Template:")
         print(f"    At Detected Location: {det_similarity:.3f}")
         print(f"    At Claimed GT Location: {gt_similarity:.3f}")
 
@@ -191,8 +191,8 @@ def main():
             "image": case["image_path"],
             "ttm_corr": best.correlation,
             "ttm_location": (best.x, best.y),
-            "gt_location": (gt_center_x, gt_center_y),
-            "distance_px": ((best.x - gt_center_x) ** 2 + (best.y - gt_center_y) ** 2)
+            "gt_location": (gt_centre_x, gt_centre_y),
+            "distance_px": ((best.x - gt_centre_x) ** 2 + (best.y - gt_centre_y) ** 2)
             ** 0.5,
             "detected_patch_similarity": det_similarity,
             "gt_patch_similarity": gt_similarity,
@@ -202,11 +202,11 @@ def main():
 
         # Verdict
         if det_similarity > 0.8 and gt_similarity < 0.5:
-            print(f"  ✓ OUR MATCH IS CORRECT, GT IS WRONG")
+            print("  ✓ OUR MATCH IS CORRECT, GT IS WRONG")
         elif gt_similarity > 0.8:
-            print(f"  ✓ GT LOCATION IS VALID")
+            print("  ✓ GT LOCATION IS VALID")
         else:
-            print(f"  ⚠ NEITHER LOCATION MATCHES WELL")
+            print("  ⚠ NEITHER LOCATION MATCHES WELL")
 
     # Summary
     print(f"\n{'=' * 70}")
@@ -222,12 +222,12 @@ def main():
 
     if correct_matches > gt_correct:
         print(
-            f"\n✓ CONCLUSION: Our implementation finds BETTER matches than the claimed GT"
+            "\n✓ CONCLUSION: Our implementation finds BETTER matches than the claimed GT"
         )
     elif correct_matches == gt_correct:
-        print(f"\n✓ CONCLUSION: Our implementation performs EQUALLY to GT")
+        print("\n✓ CONCLUSION: Our implementation performs EQUALLY to GT")
     else:
-        print(f"\n✗ CONCLUSION: GT locations are more accurate")
+        print("\n✗ CONCLUSION: GT locations are more accurate")
 
     # Save summary
     summary_path = OUTPUT_DIR / "summary.json"

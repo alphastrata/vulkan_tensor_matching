@@ -67,7 +67,7 @@ def main():
     expected_cy = tmpl_y + tmpl_size // 2
 
     print(f"Found {len(matches)} matches in {duration:.1f}ms")
-    print(f"Expected center: ({expected_cx}, {expected_cy})")
+    print(f"Expected centre: ({expected_cx}, {expected_cy})")
 
     for i, m in enumerate(matches):
         dx = m.x - expected_cx

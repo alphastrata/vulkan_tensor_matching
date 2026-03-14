@@ -41,12 +41,12 @@ def create_test_case(
     cy, cx = template_size[0] // 2, template_size[1] // 2
     for y in range(template_size[0]):
         for x in range(template_size[1]):
-            # Radial gradient from center
+            # Radial gradient from centre
             dist = np.sqrt((y - cy) ** 2 + (x - cx) ** 2)
             max_dist = np.sqrt(cy**2 + cx**2)
             template[y, x] = 1.0 - (dist / max_dist)
 
-    # Add a bright square in the center
+    # Add a bright square in the centre
     sq_size = min(template_size) // 3
     template[
         cy - sq_size // 2 : cy + sq_size // 2, cx - sq_size // 2 : cx + sq_size // 2
@@ -72,10 +72,10 @@ def create_test_case(
     # For exact matches, correlation should be very high (>0.95)
     with open(test_dir / "expected.txt", "w") as f:
         for ty, tx in template_positions:
-            # Center of the template match
-            center_x = tx + template_size[1] // 2
-            center_y = ty + template_size[0] // 2
-            f.write(f"{center_x},{center_y},0.9\n")
+            # Centre of the template match
+            centre_x = tx + template_size[1] // 2
+            centre_y = ty + template_size[0] // 2
+            f.write(f"{centre_x},{centre_y},0.9\n")
 
     print(f"Created test case '{name}':")
     print(f"  Image: {image_size[1]}x{image_size[0]}")
@@ -90,7 +90,7 @@ def main():
         name="t1_single_match",
         image_size=(200, 200),
         template_size=(30, 30),
-        template_positions=[(85, 85)],  # Center of image
+        template_positions=[(85, 85)],  # Centre of image
         noise_level=0.1,
     )
 

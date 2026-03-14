@@ -58,7 +58,7 @@ Case 1: GT correlation = 0.000 (completely wrong location)
 ### Identity Test (Lenna)
 ```
 Template: 96x96 from (100, 100)
-Expected center: (148, 148)
+Expected centre: (148, 148)
 Detected: (148, 148)
 Correlation: 1.000
 Distance: 0.0px
@@ -84,7 +84,7 @@ Match 3: corr=0.838
 
 The original `answers.jsonl` was likely generated incorrectly:
 1. Templates may have been extracted from wrong locations
-2. Coordinate system confusion (top-left vs center)
+2. Coordinate system confusion (top-left vs centre)
 3. Rotation angle encoding errors (angles like 19458° instead of ~340°)
 
 ---

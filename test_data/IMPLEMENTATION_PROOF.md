@@ -7,14 +7,14 @@
 
 ## Executive Summary
 
-The Vulkan tensorial template matching implementation has been **completely recalibrated and verified**. The core algorithm correctly performs rotation-invariant normalized cross-correlation.
+The Vulkan tensorial template matching implementation has been **completely recalibrated and verified**. The core algorithm correctly performs rotation-invariant normalised cross-correlation.
 
 ### Key Evidence
 
 **Identity Test (Lenna):**
 ```
 Template extracted from: (100, 100)
-Expected center: (132, 132)
+Expected centre: (132, 132)
 Detected match: (132, 132)
 Correlation: 1.000
 Distance: 0.0px  ← PERFECT MATCH
@@ -23,7 +23,7 @@ Distance: 0.0px  ← PERFECT MATCH
 **Verified Ground Truth (source_4.png):**
 ```
 Template extracted from: (50, 114)
-Expected center: (82, 146)
+Expected centre: (82, 146)
 Detected match: (82, 146)
 Correlation: 1.000
 Distance: 0.0px  ← PERFECT MATCH
@@ -39,19 +39,19 @@ Duration: 2247.5ms
 
 **Before (BROKEN):**
 ```glsl
-// Was computing radial profiles around image center
+// Was computing radial profiles around image centre
 float rx = dx * ct + dy * st + cx;  // Wrong reference point
 ```
 
 **After (CORRECT):**
 ```glsl
-// Correctly rotates template sampling coordinates around template center
+// Correctly rotates template sampling coordinates around template centre
 float dx = tx - tcx;
 float dy = ty - tcy;
-float rx = dx * ct + dy * st + tcx;  // Rotate around template center
+float rx = dx * ct + dy * st + tcx;  // Rotate around template centre
 float ry = -dx * st + dy * ct + tcy;
 
-// Proper NCC normalization
+// Proper NCC normalisation
 float target_norm = (target_val - mean_f) / std_dev_f;
 float tmpl_norm = (tmpl_val - mean_t) / std_dev_t;
 ncc_sum += target_norm * tmpl_norm;
@@ -60,7 +60,7 @@ ncc_sum += target_norm * tmpl_norm;
 ### 2. Proper Algorithm Flow
 
 1. For each rotation angle (0-360°):
-   - Rotate template sampling coordinates around template center
+   - Rotate template sampling coordinates around template centre
    - Sample template at rotated coordinates using bilinear interpolation
    - Compute NCC with target patch
 2. Return maximum correlation and best angle
@@ -79,7 +79,7 @@ ncc_sum += target_norm * tmpl_norm;
 | Metric | Value | Status |
 |--------|-------|--------|
 | Template location | (100, 100) | - |
-| Expected center | (132, 132) | - |
+| Expected centre | (132, 132) | - |
 | Detected match | (132, 132) | ✓ |
 | Correlation | 1.000 | ✓ |
 | Distance | 0.0px | ✓ PERFECT |
@@ -172,8 +172,8 @@ ls -la test_data/proof_output/
 The implementation is **mathematically correct and verified**:
 
 ✓ Proper rotation-invariant NCC computation  
-✓ Correct coordinate rotation around template center  
-✓ Proper normalization for both template and target  
+✓ Correct coordinate rotation around template centre  
+✓ Proper normalisation for both template and target  
 ✓ Max projection over 360 angles for best match  
 ✓ Boundary margin to avoid edge artifacts  
 ✓ Identity test passes with 0.0px error  
@@ -185,4 +185,4 @@ The implementation is **mathematically correct and verified**:
 For best results:
 - Use distinctive templates (>64×64 recommended)
 - Ensure templates have unique structural features
-- Consider tensor optimization for production speed requirements
+- Consider tensor optimisation for production speed requirements

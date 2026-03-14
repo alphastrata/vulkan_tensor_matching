@@ -46,10 +46,10 @@ fn correlation(a: &[f32], b: &[f32]) -> f32 {
     let mut b_var = 0.0f32;
 
     for (x, y) in a.iter().zip(b.iter()) {
-        let ax = x - a_mean;
+        let axe = x - a_mean;
         let bx = y - b_mean;
-        numerator += ax * bx;
-        a_var += ax * ax;
+        numerator += axe * bx;
+        a_var += axe * axe;
         b_var += bx * bx;
     }
 

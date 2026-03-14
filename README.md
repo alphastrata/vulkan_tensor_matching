@@ -80,7 +80,7 @@ cargo run --release --example lenna_vulkan_matching
 cargo test --test imageproc_comparison_test --release -- --nocapture
 ```
 
-### Proof Visualization
+### Proof Visualisation
 
 A Python script is provided to generate a comprehensive proof document with visual annotations:
 

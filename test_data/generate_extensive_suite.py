@@ -84,7 +84,7 @@ def generate_template(image_path, index):
     template_path = TEMPLATE_DIR / f"template_{index}.png"
     template.save(template_path)
 
-    # Calculate center in original image
+    # Calculate centre in original image
     cx = tx + tw // 2
     cy = ty + th // 2
 

@@ -152,7 +152,7 @@ def process_image(img_path, case_idx, matcher):
     tmpl_path = TEMPLATES_DIR / f"gt_{case_idx:03d}.png"
     tmpl_img.save(tmpl_path)
 
-    # Generate visualization
+    # Generate visualisation
     rgb_img = Image.open(img_path).convert("RGB")
     draw = ImageDraw.Draw(rgb_img, "RGBA")
 
@@ -184,7 +184,7 @@ def process_image(img_path, case_idx, matcher):
         (det_x, det_y - 25), f"TTM: {best_match.correlation:.2f}", fill=(0, 255, 0, 255)
     )
 
-    # Save visualization
+    # Save visualisation
     viz_path = OUTPUT_DIR / f"case_{case_idx:03d}_proof.png"
     rgb_img.save(viz_path)
 
@@ -211,7 +211,7 @@ def process_image(img_path, case_idx, matcher):
             "rotation": best_match.rotation_angle,
         },
         "distance": dist,
-        "visualization": str(viz_path.relative_to(TEST_DATA_DIR)),
+        "visualisation": str(viz_path.relative_to(TEST_DATA_DIR)),
         "template_viz": str(tmpl_viz_path.relative_to(TEST_DATA_DIR)),
     }
 
@@ -253,7 +253,7 @@ def generate_proof_md(results):
 
         gt = r["expected_matches"][0]
         md.append(
-            f"**Ground Truth**: top-left=({gt['x']}, {gt['y']}), center=({gt['x'] + gt['w'] // 2}, {gt['y'] + gt['h'] // 2})"
+            f"**Ground Truth**: top-left=({gt['x']}, {gt['y']}), centre=({gt['x'] + gt['w'] // 2}, {gt['y'] + gt['h'] // 2})"
         )
         md.append("")
 
@@ -265,7 +265,7 @@ def generate_proof_md(results):
         md.append(f"- Distance from GT: {r['distance']:.1f}px")
         md.append("")
 
-        md.append(f"![Proof]({r['visualization']})")
+        md.append(f"![Proof]({r['visualisation']})")
         md.append("")
         md.append(f"![Template]({r['template_viz']})")
         md.append("")

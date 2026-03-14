@@ -4,7 +4,7 @@
 // Martinez-Sanchez et al., arXiv:2408.02398v1 [cs.CV]
 //
 // This shader computes the rank-4 tensor field for an image.
-// For each pixel, we integrate the normalized intensity over all rotations,
+// For each pixel, we integrate the normalised intensity over all rotations,
 // weighted by the symmetric tensor basis v^{⊗4}(θ).
 //
 // The result encodes the rotation signature of the image structure.
@@ -32,7 +32,7 @@ void main() {
     uvec3 g_id = gl_GlobalInvocationID;
     if (g_id.x >= params.width || g_id.y >= params.height) return;
 
-    // Compute global statistics for normalization
+    // Compute global statistics for normalisation
     uint count = params.width * params.height;
     float sum = 0.0;
     float sum2 = 0.0;
@@ -54,7 +54,7 @@ void main() {
     
     float acc[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
     
-    // Pixel coordinate relative to image center
+    // Pixel coordinate relative to image centre
     float cx = float(params.width - 1) * 0.5;
     float cy = float(params.height - 1) * 0.5;
     float dx = float(g_id.x) - cx;
@@ -65,7 +65,7 @@ void main() {
         float ct = cos(theta);
         float st = sin(theta);
 
-        // Rotate the coordinate around the center
+        // Rotate the coordinate around the centre
         float rx = dx * ct + dy * st + cx;
         float ry = -dx * st + dy * ct + cy;
 
@@ -87,7 +87,7 @@ void main() {
             val = mix(mix(i00, i10, fx), mix(i01, i11, fx), fy);
         }
 
-        // Normalized intensity
+        // Normalised intensity
         float s_norm = (val - mean) * norm_factor;
 
         // Tensor basis v^{⊗4} where v = (cos θ, sin θ)

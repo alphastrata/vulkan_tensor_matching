@@ -55,7 +55,7 @@ def find_distinctive_location(img_np, size=64, margin=50):
 
     # Require minimum variance of 0.01 for distinctive template
     if best_var < 0.01:
-        print(f"  WARNING: Low variance template, may not match well")
+        print("  WARNING: Low variance template, may not match well")
 
     return best_loc, best_var
 
@@ -112,11 +112,11 @@ def numpy_ncc(img_np, tmpl_np):
     }
 
 
-def draw_match(img, x, y, w, h, color, label, is_center=True):
+def draw_match(img, x, y, w, h, color, label, is_centre=True):
     """Draw match annotation."""
     draw = ImageDraw.Draw(img, "RGBA")
 
-    if is_center:
+    if is_centre:
         tl_x, tl_y = x - w / 2, y - h / 2
     else:
         tl_x, tl_y = x, y
@@ -145,7 +145,7 @@ def process_image(img_path, case_idx, matcher):
     # Find distinctive location
     loc, var = find_distinctive_location(img_np, TEMPLATE_SIZE)
     if loc is None:
-        print(f"  SKIP: No suitable location")
+        print("  SKIP: No suitable location")
         return None
 
     tmpl_x, tmpl_y = loc
@@ -165,12 +165,12 @@ def process_image(img_path, case_idx, matcher):
     tmpl_img.save(tmpl_path)
     print(f"  Saved template: {tmpl_path.name}")
 
-    # Ground truth center
+    # Ground truth centre
     gt_cx = tmpl_x + TEMPLATE_SIZE // 2
     gt_cy = tmpl_y + TEMPLATE_SIZE // 2
 
     # Match with Vulkan ONLY (NumPy is too slow)
-    print(f"  Vulkan TTM...")
+    print("  Vulkan TTM...")
     start = time.time()
     vulkan_matches = matcher.match_template(img_data, template, 0.3, 10)
     vulkan_duration = time.time() - start
@@ -199,7 +199,7 @@ def process_image(img_path, case_idx, matcher):
     numpy_result = None
     numpy_dist = None
 
-    # Generate visualization
+    # Generate visualisation
     rgb_img = Image.open(img_path).convert("RGB")
 
     # Ground truth (purple)
@@ -211,7 +211,7 @@ def process_image(img_path, case_idx, matcher):
         TEMPLATE_SIZE,
         (128, 0, 128),
         "GT",
-        is_center=True,
+        is_centre=True,
     )
 
     # NumPy (orange)
@@ -224,7 +224,7 @@ def process_image(img_path, case_idx, matcher):
             TEMPLATE_SIZE,
             (255, 165, 0),
             f"NumPy: {numpy_result['corr']:.2f}",
-            is_center=True,
+            is_centre=True,
         )
 
     # Vulkan (green if pass, red if fail)
@@ -238,7 +238,7 @@ def process_image(img_path, case_idx, matcher):
             TEMPLATE_SIZE,
             color,
             f"Vulkan: {vulkan_result['corr']:.2f}",
-            is_center=True,
+            is_centre=True,
         )
 
     viz_path = OUTPUT_DIR / f"case_{case_idx:03d}_proof.png"
@@ -265,7 +265,7 @@ def process_image(img_path, case_idx, matcher):
         "numpy_distance": numpy_dist,
         "vulkan_distance": vulkan_dist,
         "vulkan_duration": vulkan_duration,
-        "visualization": str(viz_path.relative_to(TEST_DATA_DIR)),
+        "visualisation": str(viz_path.relative_to(TEST_DATA_DIR)),
         "template_viz": str(tmpl_viz_path.relative_to(TEST_DATA_DIR)),
     }
 
@@ -359,11 +359,11 @@ def generate_proof_md(results):
 
         gt = r["expected_matches"][0]
         md.append(
-            f"**Ground Truth**: top-left=({gt['x']}, {gt['y']}), center=({gt['x'] + gt['w'] // 2}, {gt['y'] + gt['h'] // 2})"
+            f"**Ground Truth**: top-left=({gt['x']}, {gt['y']}), centre=({gt['x'] + gt['w'] // 2}, {gt['y'] + gt['h'] // 2})"
         )
         md.append("")
 
-        md.append(f"**Vulkan TTM Result**:")
+        md.append("**Vulkan TTM Result**:")
         md.append(f"- Position: ({r['vulkan_result']['x']}, {r['vulkan_result']['y']})")
         md.append(f"- Correlation: {r['vulkan_result']['corr']:.3f}")
         md.append(f"- Rotation: {math.degrees(r['vulkan_result']['rotation']):.1f}°")
@@ -371,7 +371,7 @@ def generate_proof_md(results):
         md.append(f"- Duration: {r['vulkan_duration']:.2f}s")
         md.append("")
 
-        md.append(f"![Proof]({r['visualization']})")
+        md.append(f"![Proof]({r['visualisation']})")
         md.append("")
         md.append(f"![Template]({r['template_viz']})")
         md.append("")
@@ -408,7 +408,7 @@ def main():
             results.append(result)
             print(f"  Completed in {elapsed:.1f}s")
         else:
-            print(f"  Skipped")
+            print("  Skipped")
 
     if not results:
         print("\n✗ No results!")
@@ -450,12 +450,12 @@ def main():
     if vulkan_pass == len(results):
         print("\n✓✓✓ ALL TESTS PASSED ✓✓✓")
     elif vulkan_pass > len(results) // 2:
-        print(f"\n⚠ Majority passed - algorithm has limitations")
+        print("\n⚠ Majority passed - algorithm has limitations")
     else:
-        print(f"\n✗ ALGORITHM DOES NOT WORK RELIABLY")
+        print("\n✗ ALGORITHM DOES NOT WORK RELIABLY")
         print("  See PROOF.md for analysis of fundamental flaws")
 
-    print(f"\nOutput:")
+    print("\nOutput:")
     print(f"  - {PROOF_MD}")
     print(f"  - {GT_FILE}")
     print(f"  - {len(results)} templates in {TEMPLATES_DIR}/")

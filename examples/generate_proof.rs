@@ -177,11 +177,11 @@ fn process_image(
 
     println!("  ✓ VERIFIED");
 
-    // Generate visualization
+    // Generate visualisation
     let rgb_path = output_dir.join(format!("case_{:03}_proof.png", case_idx));
     let tmpl_viz_path = output_dir.join(format!("case_{:03}_template.png", case_idx));
 
-    // Load original as RGB for visualization
+    // Load original as RGB for visualisation
     let orig_img = image::open(img_path)
         .expect("Failed to open image")
         .to_rgb8();
@@ -205,7 +205,7 @@ fn process_image(
         }
     }
 
-    // Cross at center
+    // Cross at centre
     for i in 0..15 {
         if gt_cx + i < viz.width() {
             viz.put_pixel(gt_cx + i, gt_cy, Rgb([128, 0, 128]));
@@ -238,7 +238,7 @@ fn process_image(
         }
     }
 
-    viz.save(&rgb_path).expect("Failed to save visualization");
+    viz.save(&rgb_path).expect("Failed to save visualisation");
     save_grayscale_image(&tmpl_viz_path, &template.data, TEMPLATE_SIZE, TEMPLATE_SIZE);
 
     Some(TestCase {
@@ -316,7 +316,7 @@ fn generate_proof_md(results: &[TestCase], output_path: &Path) {
         let gt_cx = r.tmpl_x + TEMPLATE_SIZE / 2;
         let gt_cy = r.tmpl_y + TEMPLATE_SIZE / 2;
         md.push_str(&format!(
-            "**Ground Truth**: top-left=({}, {}), center=({}, {})\n\n",
+            "**Ground Truth**: top-left=({}, {}), centre=({}, {})\n\n",
             r.tmpl_x, r.tmpl_y, gt_cx, gt_cy
         ));
 
@@ -358,7 +358,7 @@ fn main() {
     fs::create_dir_all(&templates_dir).expect("Failed to create templates dir");
     fs::create_dir_all(&output_dir).expect("Failed to create output dir");
 
-    // Initialize matcher
+    // Initialise matcher
     println!("\nInitializing Vulkan Tensor Matcher...");
     let matcher = VulkanTensorMatcher::new().expect("Failed to create matcher");
 

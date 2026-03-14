@@ -21,11 +21,9 @@ except ImportError:
     OPENCV_AVAILABLE = False
     print("WARNING: OpenCV not available - comparison tests will fail")
 
-from rust_python_lib import (
+from vulkan_tensor_matching import (
     ImageData,
-    MatchTemplateMethod,
     VulkanTensorMatcher,
-    match_template_cpu,
 )
 
 TEST_ASSETS_DIR = Path(__file__).parent.parent / "test_data"

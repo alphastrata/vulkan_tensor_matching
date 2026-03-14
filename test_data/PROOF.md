@@ -24,7 +24,7 @@ This proof uses **verified ground truth**:
 
 ### Case 0: source_4.png
 
-**Ground Truth**: top-left=(114, 178), center=(146, 210)
+**Ground Truth**: top-left=(114, 178), centre=(146, 210)
 
 **Vulkan TTM Result**:
 - Position: (146, 210)
@@ -41,7 +41,7 @@ This proof uses **verified ground truth**:
 
 ### Case 1: source_0.png
 
-**Ground Truth**: top-left=(498, 306), center=(530, 338)
+**Ground Truth**: top-left=(498, 306), centre=(530, 338)
 
 **Vulkan TTM Result**:
 - Position: (530, 338)
@@ -58,7 +58,7 @@ This proof uses **verified ground truth**:
 
 ### Case 2: source_5.png
 
-**Ground Truth**: top-left=(562, 178), center=(594, 210)
+**Ground Truth**: top-left=(562, 178), centre=(594, 210)
 
 **Vulkan TTM Result**:
 - Position: (594, 210)
@@ -75,7 +75,7 @@ This proof uses **verified ground truth**:
 
 ### Case 3: source_1.png
 
-**Ground Truth**: top-left=(306, 242), center=(338, 274)
+**Ground Truth**: top-left=(306, 242), centre=(338, 274)
 
 **Vulkan TTM Result**:
 - Position: (338, 274)

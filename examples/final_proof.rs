@@ -57,10 +57,10 @@ fn correlation(a: &[f32], b: &[f32]) -> f32 {
     let mut a_var = 0.0f32;
     let mut b_var = 0.0f32;
     for (x, y) in a.iter().zip(b.iter()) {
-        let ax = x - a_mean;
+        let axe = x - a_mean;
         let bx = y - b_mean;
-        num += ax * bx;
-        a_var += ax * ax;
+        num += axe * bx;
+        a_var += axe * axe;
         b_var += bx * bx;
     }
     let denom = (a_var * b_var).sqrt();
@@ -202,7 +202,7 @@ fn main() {
             if passed { "✓" } else { "✗" }
         );
 
-        // Generate visualization
+        // Generate visualisation
         let viz_path = output_dir.join(format!("case_{:03}_proof.png", case_idx));
         let orig_rgb = image::open(&img_path)
             .expect("Failed to open image")
@@ -416,7 +416,7 @@ fn main() {
     println!("  - {}", proof_path.display());
     println!("  - {}", gt_path.display());
     println!(
-        "  - {} visualizations in {}/",
+        "  - {} visualisations in {}/",
         results.len(),
         output_dir.display()
     );

@@ -98,7 +98,7 @@ impl VulkanTensor2D {
     pub fn optimal_rotation_angle(&self) -> f32 {
         let c = &self.components;
 
-        // Convert to double-angle representation for cleaner optimization
+        // Convert to double-angle representation for cleaner optimisation
         // Using identities:
         //   cos⁴θ = (3 + 4cos2θ + cos4θ)/8
         //   sin⁴θ = (3 - 4cos2θ + cos4θ)/8
@@ -158,7 +158,7 @@ impl VulkanTensor2D {
             }
         }
 
-        // Normalize to [0, 2π)
+        // Normalise to [0, 2π)
         let two_pi = 2.0 * std::f32::consts::PI;
         ((best_theta % two_pi) + two_pi) % two_pi
     }
@@ -237,7 +237,7 @@ impl TensorField2D {
         let num_angles = 360;
         let angle_step = 2.0 * std::f32::consts::PI / num_angles as f32;
 
-        // Normalize template first (Eq. 4 from paper)
+        // Normalise template first (Eq. 4 from paper)
         let mean: f32 = image_data.iter().sum::<f32>() / n as f32;
         let var: f32 = image_data
             .iter()
@@ -250,8 +250,8 @@ impl TensorField2D {
         let mut tensors = vec![VulkanTensor2D::zero(); n];
         let mut total_intensity = 0.0f32;
 
-        let center_x = width as f32 / 2.0;
-        let center_y = height as f32 / 2.0;
+        let centre_x = width as f32 / 2.0;
+        let centre_y = height as f32 / 2.0;
 
         // For each pixel, integrate over all rotations
         for (pixel_idx, tensor) in tensors.iter_mut().enumerate() {
@@ -264,17 +264,17 @@ impl TensorField2D {
                 let cos_t = theta.cos();
                 let sin_t = theta.sin();
 
-                // Compute rotated coordinates (rotate pixel position around center)
+                // Compute rotated coordinates (rotate pixel position around centre)
                 // To sample t'(R_{-θ}p), we rotate the coordinate by +θ
-                let dx = px - center_x;
-                let dy = py - center_y;
-                let rx = dx * cos_t - dy * sin_t + center_x;
-                let ry = dx * sin_t + dy * cos_t + center_y;
+                let dx = px - centre_x;
+                let dy = py - centre_y;
+                let rx = dx * cos_t - dy * sin_t + centre_x;
+                let ry = dx * sin_t + dy * cos_t + centre_y;
 
                 // Bilinear interpolation to get t' at rotated position
                 let rotated_val = bilinear_interpolate(image_data, width, height, rx, ry);
 
-                // Apply normalization
+                // Apply normalisation
                 let t_prime = (rotated_val - mean) * inv_norm;
 
                 // Accumulate weighted by tensor components R^{⊙4}
@@ -288,7 +288,7 @@ impl TensorField2D {
                 tensor.components[4] += t_prime * sin2 * sin2; // sin⁴θ
             }
 
-            // Normalize by number of angles
+            // Normalise by number of angles
             let norm_factor = 1.0 / num_angles as f32;
             for i in 0..5 {
                 tensor.components[i] *= norm_factor;
