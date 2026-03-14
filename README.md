@@ -5,7 +5,7 @@ Based on this [Tensor-based template matching paper](https://arxiv.org/abs/2408.
 
 I have done my very best to faithfully interpret the paper and its algorithms here using Vulkan.
 
-This is **NOT** as well tested as the things it compares to, i.e imageproc or opencv -- so if you're looking for something extremely robust, this is not for you.
+I say 'allegedly' above, but in truth the implementation is _quite_ fast, especially when compared to the cpu implementation from `imageproc` (Which is a great create, I'm not throwing any shade).
 
 ## Usage:
 
@@ -64,32 +64,41 @@ Add to your `Cargo.toml`:
 vulkan_tensor_matching = { git = "https://github.com/alphastrata/vulkan_tensor_matching" }
 ```
 
+### Async Runtime Configuration
+The library supports multiple async runtimes via feature flags:
+```toml
+# Default (uses pollster)
+vulkan_tensor_matching = "0.1"
+
+# Or with specific runtime
+vulkan_tensor_matching = { version = "0.1", features = ["tokio"] }
+vulkan_tensor_matching = { version = "0.1", features = ["smol"] }
+```
+
 ## Examples
 
-Run the Lenna example with:
+Run any example with:
 ```bash
 cargo run --release --example lenna_vulkan_matching
 ```
 
-## Testing
+### Benchmark Results
 
-### Vulkan GPU vs CPU Comparison Test
+| Implementation | Average Time | Notes |
+|---------------|-------------|-------|
 
-```bash
-# Run Vulkan GPU comparison against imageproc CPU
-cargo test --test imageproc_comparison_test --release -- --nocapture
-```
+#TODO
 
 ### Proof Visualisation
 
 A Python script is provided to generate a comprehensive proof document with visual annotations:
 
 ```bash
-# Install dependencies
-pip install pillow
-
-# Run the visualizer
-python tests/proof_visualizer.py
+cd benches/python_benchmarks
+uv venv
+source .venv/bin/activate
+uv pip install opencv-python numpy pandas seaborn
+python bench.py
 ```
 
 Results will be saved to `test_data/proof.md`.
