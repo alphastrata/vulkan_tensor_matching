@@ -18,7 +18,7 @@ bench:
 
 proof:
     @echo "Running proof pipeline..."
-    uv run python tests/proof_visualizer.py
+    uv run python tests/proof_pipeline.py
 
 fmt:
     @echo "Formatting Rust..."
@@ -29,8 +29,8 @@ fmt:
 lint:
     @echo "Running clippy on library..."
     cargo clippy --lib -- -D warnings
-    @echo "Running ruff on Python (core files only)..."
-    uv run ruff check tests/proof_pipeline.py tests/proof_visualizer.py tests/compare_opencv.py
+    @echo "Running ruff on Python..."
+    uv run ruff check tests/proof_pipeline.py
 
 check: build test lint
 
