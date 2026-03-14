@@ -1,4 +1,3 @@
-pub mod fft;
 pub mod loader;
 pub mod tensor_matcher;
 
