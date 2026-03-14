@@ -11,9 +11,7 @@ use log::{debug, info};
 use std::ffi::CString;
 use std::sync::Arc;
 
-
-static MULTI_ANGLE_NCC_SPV: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/tensorial_correlation.spv"));
+static NCC_SHADER_SPV: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/corr.spv"));
 
 #[derive(Debug, Clone)]
 pub struct TensorTemplateMatch {
@@ -94,7 +92,7 @@ impl VulkanTensorMatcher {
 
         let pipeline = Self::create_compute_pipeline(
             &vulkan_device.device,
-            MULTI_ANGLE_NCC_SPV,
+            NCC_SHADER_SPV,
             pipeline_layout,
         )?;
 
