@@ -3,13 +3,7 @@ use bytemuck::{Pod, Zeroable};
 use std::f32::consts::PI;
 
 /// Bilinear interpolation helper for tensor field computation
-fn bilinear_interpolate(
-    data: &[f32],
-    width: u32,
-    height: u32,
-    x: f32,
-    y: f32,
-) -> f32 {
+fn bilinear_interpolate(data: &[f32], width: u32, height: u32, x: f32, y: f32) -> f32 {
     // Bounds check - return 0 for out-of-bounds positions
     if x < 0.0 || x >= (width - 1) as f32 || y < 0.0 || y >= (height - 1) as f32 {
         return 0.0;
@@ -103,7 +97,7 @@ impl VulkanTensor2D {
     /// we use a combination of analytical solution and refinement.
     pub fn optimal_rotation_angle(&self) -> f32 {
         let c = &self.components;
-        
+
         // Convert to double-angle representation for cleaner optimization
         // Using identities:
         //   cos⁴θ = (3 + 4cos2θ + cos4θ)/8
@@ -111,40 +105,40 @@ impl VulkanTensor2D {
         //   cos³θsinθ = (sin2θ + sin4θ/2)/4
         //   cosθsin³θ = (sin2θ - sin4θ/2)/4
         //   cos²θsin²θ = (1 - cos4θ)/8
-        
+
         // Coefficients for 4θ terms (dominant for degree-4)
-        let a4 = c[0] - 3.0 * c[2] + c[4];  // cos(4θ) coefficient
-        let b4 = c[1] - c[3];                // sin(4θ) coefficient
-        
+        let a4 = c[0] - 3.0 * c[2] + c[4]; // cos(4θ) coefficient
+        let b4 = c[1] - c[3]; // sin(4θ) coefficient
+
         // Coefficients for 2θ terms
-        let a2 = c[0] - c[4];  // cos(2θ) coefficient  
-        let b2 = c[1] + c[3];  // sin(2θ) coefficient
-        
+        let a2 = c[0] - c[4]; // cos(2θ) coefficient  
+        let b2 = c[1] + c[3]; // sin(2θ) coefficient
+
         // Initial estimate from 4θ terms (dominant frequency)
         let theta_4theta = if a4.abs() > 1e-10 || b4.abs() > 1e-10 {
             0.25 * b4.atan2(a4)
         } else {
             0.0
         };
-        
+
         // Initial estimate from 2θ terms
         let theta_2theta = if a2.abs() > 1e-10 || b2.abs() > 1e-10 {
             0.5 * b2.atan2(a2)
         } else {
             0.0
         };
-        
+
         // Evaluate f(θ) at candidate angles and pick the best
         let candidates = [
             theta_4theta,
-            theta_4theta + std::f32::consts::PI / 2.0,  // 180° symmetry
+            theta_4theta + std::f32::consts::PI / 2.0, // 180° symmetry
             theta_2theta,
-            theta_2theta + std::f32::consts::PI,  // 360° symmetry
+            theta_2theta + std::f32::consts::PI, // 360° symmetry
         ];
-        
+
         let mut best_theta = theta_4theta;
         let mut max_val = f32::NEG_INFINITY;
-        
+
         for &theta in &candidates {
             let val = self.evaluate_at_angle(theta);
             if val > max_val {
@@ -152,9 +146,9 @@ impl VulkanTensor2D {
                 best_theta = theta;
             }
         }
-        
+
         // Fine refinement: search small neighborhood around best candidate
-        let step = 0.01;  // ~0.57 degrees
+        let step = 0.01; // ~0.57 degrees
         for i in -10..=10 {
             let theta = best_theta + i as f32 * step;
             let val = self.evaluate_at_angle(theta);
@@ -163,12 +157,12 @@ impl VulkanTensor2D {
                 best_theta = theta;
             }
         }
-        
+
         // Normalize to [0, 2π)
         let two_pi = 2.0 * std::f32::consts::PI;
         ((best_theta % two_pi) + two_pi) % two_pi
     }
-    
+
     /// Evaluate the tensor contraction at a specific angle θ
     /// f(θ) = C·R(θ)^{⊙4}
     fn evaluate_at_angle(&self, theta: f32) -> f32 {
@@ -176,13 +170,13 @@ impl VulkanTensor2D {
         let sin_t = theta.sin();
         let cos2 = cos_t * cos_t;
         let sin2 = sin_t * sin_t;
-        
+
         // Direct evaluation of the trigonometric polynomial
         self.components[0] * cos2 * cos2 +                    // C₀cos⁴θ
         self.components[1] * cos2 * cos_t * sin_t +           // C₁cos³θsinθ
         self.components[2] * cos2 * sin2 +                    // C₂cos²θsin²θ
         self.components[3] * cos_t * sin_t * sin2 +           // C₃cosθsin³θ
-        self.components[4] * sin2 * sin2                      // C₄sin⁴θ
+        self.components[4] * sin2 * sin2 // C₄sin⁴θ
     }
 
     /// Tensor addition for accumulating rotations
@@ -245,7 +239,11 @@ impl TensorField2D {
 
         // Normalize template first (Eq. 4 from paper)
         let mean: f32 = image_data.iter().sum::<f32>() / n as f32;
-        let var: f32 = image_data.iter().map(|&x| (x - mean) * (x - mean)).sum::<f32>() / n as f32;
+        let var: f32 = image_data
+            .iter()
+            .map(|&x| (x - mean) * (x - mean))
+            .sum::<f32>()
+            / n as f32;
         let std_dev = var.sqrt().max(1e-6);
         let inv_norm = 1.0 / (std_dev * (n as f32).sqrt());
 
@@ -283,11 +281,11 @@ impl TensorField2D {
                 // Binomial coefficients C(4,k) = [1, 4, 6, 4, 1]
                 let cos2 = cos_t * cos_t;
                 let sin2 = sin_t * sin_t;
-                tensor.components[0] += t_prime * cos2 * cos2;              // cos⁴θ
+                tensor.components[0] += t_prime * cos2 * cos2; // cos⁴θ
                 tensor.components[1] += t_prime * 4.0 * cos2 * cos_t * sin_t; // 4cos³θsinθ
-                tensor.components[2] += t_prime * 6.0 * cos2 * sin2;          // 6cos²θsin²θ
+                tensor.components[2] += t_prime * 6.0 * cos2 * sin2; // 6cos²θsin²θ
                 tensor.components[3] += t_prime * 4.0 * cos_t * sin_t * sin2; // 4cosθsin³θ
-                tensor.components[4] += t_prime * sin2 * sin2;                // sin⁴θ
+                tensor.components[4] += t_prime * sin2 * sin2; // sin⁴θ
             }
 
             // Normalize by number of angles
@@ -299,7 +297,12 @@ impl TensorField2D {
             total_intensity += tensor.frobenius_norm();
         }
 
-        Self { tensors, width, height, total_intensity }
+        Self {
+            tensors,
+            width,
+            height,
+            total_intensity,
+        }
     }
 
     /// Create tensor field from image data with proper normalisation as per the paper

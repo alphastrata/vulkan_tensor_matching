@@ -19,20 +19,20 @@ for i, tc in enumerate(test_cases):
     img_path = TEST_DATA / tc["image"]
     if not img_path.exists():
         continue
-    
+
     img = Image.open(img_path).convert("L")
     img_np = np.array(img)
-    
+
     x, y, w, h = tc["x"], tc["y"], tc["w"], tc["h"]
-    tmpl = img_np[y:y+h, x:x+w]
-    
+    tmpl = img_np[y : y + h, x : x + w]
+
     tmpl_path = TEMPLATES_DIR / f"test_{i:03d}.png"
     Image.fromarray(tmpl).save(tmpl_path)
-    
+
     answer = {
         "image_path": tc["image"],
         "template_path": str(tmpl_path.relative_to(TEST_DATA)),
-        "expected_matches": [{"x": x, "y": y, "w": w, "h": h, "angle": 0.0}]
+        "expected_matches": [{"x": x, "y": y, "w": w, "h": h, "angle": 0.0}],
     }
     answers.append(answer)
     print(f"Created: {tmpl_path.name} ({w}x{h}) from ({x},{y})")

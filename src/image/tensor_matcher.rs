@@ -129,23 +129,23 @@ impl VulkanTensorMatcher {
         let out_h = target_image.height - template_image.height + 1;
 
         // Create buffers
-        let target_buffer = self.memory_manager.create_image_buffer(
-            target_image.width,
-            target_image.height,
-            1,
-        )?;
-        self.memory_manager.upload_data(&target_buffer, &target_image.data)?;
+        let target_buffer =
+            self.memory_manager
+                .create_image_buffer(target_image.width, target_image.height, 1)?;
+        self.memory_manager
+            .upload_data(&target_buffer, &target_image.data)?;
 
         let template_buffer = self.memory_manager.create_image_buffer(
             template_image.width,
             template_image.height,
             1,
         )?;
-        self.memory_manager.upload_data(&template_buffer, &template_image.data)?;
+        self.memory_manager
+            .upload_data(&template_buffer, &template_image.data)?;
 
         // Result buffer: vec4 per position (corr, angle, _, _)
         let result_buffer = self.memory_manager.create_tensor_buffer(
-            (out_w * out_h * 16) as u64,  // 4 floats * 4 bytes
+            (out_w * out_h * 16) as u64, // 4 floats * 4 bytes
             vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
             gpu_allocator::MemoryLocation::GpuToCpu,
             "Result Buffer",
@@ -180,7 +180,7 @@ impl VulkanTensorMatcher {
                 template_height: template_image.height,
                 correlation_threshold,
                 max_results: max_matches as u32,
-                num_angles: 36,  // 10 degree steps
+                num_angles: 36, // 10 degree steps
                 padding: 0,
             }],
         )?;
@@ -242,7 +242,8 @@ impl VulkanTensorMatcher {
 
         // Read results
         let mut result_data = vec![0.0f32; (out_w * out_h * 4) as usize];
-        self.memory_manager.device_to_host(&result_buffer, &mut result_data)?;
+        self.memory_manager
+            .device_to_host(&result_buffer, &mut result_data)?;
 
         // Find peaks
         let matches = self.find_peaks(&result_data, out_w, out_h, template_image, max_matches)?;
@@ -350,9 +351,11 @@ impl VulkanTensorMatcher {
                 &vk::CommandBufferBeginInfo::default()
                     .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
             )?;
-            self._vulkan_device
-                .device
-                .cmd_bind_pipeline(cmd, vk::PipelineBindPoint::COMPUTE, pipeline);
+            self._vulkan_device.device.cmd_bind_pipeline(
+                cmd,
+                vk::PipelineBindPoint::COMPUTE,
+                pipeline,
+            );
             self._vulkan_device.device.cmd_bind_descriptor_sets(
                 cmd,
                 vk::PipelineBindPoint::COMPUTE,

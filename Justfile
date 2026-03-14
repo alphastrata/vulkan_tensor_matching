@@ -1,48 +1,61 @@
 # Justfile for Vulkan Tensor Matching
+# Unified commands for both Rust and Python
 
 default:
     @just --list
 
+# Build everything
 build:
+    @echo "Building Rust library..."
     cargo build --release
-
-build-py:
+    @echo "Building Python bindings..."
     uv run maturin develop --features python
 
-test-rs:
+# Run all tests
+test:
+    @echo "Running Rust tests..."
     cargo test --release --lib --tests
+    @echo "Running Python tests..."
+    uv run pytest tests/test_vulkan_matching.py tests/test_tensor_rotation.py -v
 
-test-py: build-py
-    uv run pytest tests/test_vulkan_matching.py tests/test_tensor_rotation.py
-
-test: test-rs test-py
-
-test-comparison:
-    cargo test --test imageproc_comparison_test --release -- --nocapture
-
+# Run benchmarks
 bench:
     cargo bench
 
-example: build
-    cargo run --release --example lenna_vulkan_matching
+# Run proof pipeline (generates test_data/proof.html)
+proof:
+    @echo "Running proof pipeline..."
+    uv run python tests/proof_pipeline.py
+    @echo "View results: open test_data/proof.html"
 
-proof: build-py
-    uv run python3 tests/proof_visualizer.py
-
-fmt: fmt-rs fmt-py
-
-fmt-rs:
+# Format all code
+fmt:
+    @echo "Formatting Rust..."
     cargo fmt --all
-
-fmt-py:
+    @echo "Formatting Python..."
     uv run ruff format .
 
-check: clippy fmt test
+# Lint all code (Rust clippy + Python ruff)
+lint:
+    @echo "Running clippy on library..."
+    cargo clippy --lib -- -D warnings
+    @echo "Running ruff on Python..."
+    uv run ruff check tests/*.py
 
-clippy:
-    cargo clippy --all-targets --all-features -- -D warnings
+# Full check: build + test + lint
+check: build test lint
 
+# Clean build artifacts
 clean:
     cargo clean
-    rm -f vulkan_match_*.png vulkan_lenna_match.png vulkan_synthetic_match.png vulkan_exact_match.png
+    rm -rf target/
+    rm -f vulkan_*.png extracted_*.png
     rm -rf test_data/proof_output/*
+
+# Run Lenna example
+example:
+    cargo run --release --example lenna_vulkan_matching
+
+# Compare with imageproc
+compare:
+    cargo test --test imageproc_comparison_test --release -- --nocapture
